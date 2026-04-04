@@ -1,0 +1,7 @@
+{
+  "name": "CoverStar Opus ",
+  "description": "Become a magazine cover star with AI",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
