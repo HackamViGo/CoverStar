@@ -495,7 +495,13 @@ export default function HomePage() {
                           }`}
                         >
                           <Image
-                            src={mag.thumbnail}
+                            src={
+                              genderFilter === "male" && mag.thumbnailMale 
+                                ? mag.thumbnailMale 
+                                : genderFilter === "female" && mag.thumbnailFemale 
+                                  ? mag.thumbnailFemale 
+                                  : mag.thumbnail
+                            }
                             alt={mag.name}
                             fill
                             className="object-cover transition-transform duration-1000 group-hover:scale-110"
