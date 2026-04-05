@@ -57,10 +57,19 @@
   .bg-gold-gradient {
     background: linear-gradient(135deg, #D4AF37 0%, #F9E29C 50%, #996515 100%);
   }
+
+  .bg-ruby-gradient {
+    background: linear-gradient(135deg, #700116 0%, #a0011e 50%, #500110 100%);
+  }
+
+  .bg-emerald-gradient {
+    background: linear-gradient(135deg, #043927 0%, #10b981 50%, #065f3e 100%);
+  }
   
   .text-gold-gradient {
     background: linear-gradient(135deg, #D4AF37 0%, #F9E29C 50%, #996515 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
@@ -69,7 +78,7 @@
   }
 
   .shadow-gold {
-    shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
   }
 
   .glass-card {

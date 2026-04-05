@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app/page.tsx -> idb-keyval\":{\"id\":\"app/page.tsx -> idb-keyval\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_idb-keyval_dist_index_js.js\"]}}"

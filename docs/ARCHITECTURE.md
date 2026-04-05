@@ -2,6 +2,66 @@
 
 CoverStar follows a modern Next.js 15 App Router architecture with a focus on client-side AI generation and smooth animations.
 
+## Project Structure
+
+```text
+.
+├── app/
+│   ├── api/
+│   │   └── auth/
+│   │       └── [...nextauth]/
+│   │           └── route.ts
+│   ├── gallery/
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── login/
+│   │   └── page.tsx
+│   ├── page.tsx
+│   ├── register/
+│   │   └── page.tsx
+│   └── result/
+│       └── [id]/
+│           └── page.tsx
+├── components/
+│   ├── AdScreen.tsx
+│   ├── DustAnimation.tsx
+│   ├── MagazineTitle.tsx
+│   ├── SettingsScreen.tsx
+│   ├── providers.tsx
+│   └── ui/
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── input.tsx
+│       └── label.tsx
+├── docs/
+│   ├── API_AND_DATA.md
+│   ├── ARCHITECTURE.md
+│   └── README.md
+├── lib/
+│   ├── creative-director.ts
+│   ├── generation-pools.ts
+│   ├── image-utils.ts
+│   ├── magazines.ts
+│   ├── prompt-builder.ts
+│   ├── store.ts
+│   └── utils.ts
+├── public/
+│   ├── manifest.json
+│   └── thumbnails/
+├── scripts/
+│   └── generate-thumbnails.mts
+├── .env
+├── .env.example
+├── .gitignore
+├── README.md
+├── metadata.json
+├── middleware.ts
+├── next.config.ts
+├── package.json
+└── tsconfig.json
+```
+
 ## Architectural Overview
 
 The application is structured as a Single Page Application (SPA) for the generation flow, with additional routes for authentication and a gallery.
@@ -44,9 +104,9 @@ The global state is managed using **Zustand** in `lib/store.ts`.
 
 | State Field | Description |
 |-------------|-------------|
-| `user` | Current authenticated user information. |
-| `setUser` | Action to update user state. |
-| `logout` | Action to clear user state. |
+| `apiKey` | The user's Google AI Studio API key. |
+| `profile` | User aesthetic preferences (Gender, etc.). |
+| `setCurrentStep` | Controls the multi-step generation UI. |
 
 ## Components
 
@@ -57,32 +117,35 @@ The global state is managed using **Zustand** in `lib/store.ts`.
 | `AdScreen.tsx` | Displays high-fashion ads during AI generation. | `onComplete: () => void`, `isReady: boolean` |
 | `DustAnimation.tsx` | Cinematic particle reveal animation after generation. | `onComplete: () => void` |
 | `SettingsScreen.tsx` | User settings and profile management overlay. | `onClose: () => void` |
+| `MagazineTitle.tsx` | Dynamic SVG-based magazine masthead renderer. | `id: string` |
 | `providers.tsx` | Wraps the app with `SessionProvider` and `Toaster`. | `children: React.ReactNode` |
 
 ### UI Components (`components/ui/`)
 
 | Component | API (Props) | Description |
 |-----------|-------------|-------------|
-| `button.tsx` | `variant`, `size`, `asChild` | Standard button with multiple variants (default, destructive, outline, etc.). |
+| `button.tsx` | `variant`, `size`, `asChild` | Standard button with premium variants (luxury, luxury-emerald, luxury-ruby). |
 | `card.tsx` | `Card`, `CardHeader`, `CardTitle`, `CardContent` | Flexible card layout components. |
 | `input.tsx` | Standard HTML input props | Styled text input field. |
 | `label.tsx` | Standard HTML label props | Styled label for form elements. |
 
 ## Library Modules (`lib/`)
 
-- **`generation-pools.ts`**: Contains arrays of prompts and styles used to randomize the AI generation process.
-- **`magazines.ts`**: Defines the data structure and content for the magazine templates.
+- **`creative-director.ts`**: The core orchestrator for AI generation, managing the sequence of scene analysis and visual synthesis.
+- **`prompt-builder.ts`**: Constructs precise, descriptive prompts for Gemini 1.5 Flash based on magazine DNA and user attributes.
+- **`generation-pools.ts`**: Contains arrays of background styles and lighting presets used to randomize the AI generation process.
+- **`magazines.ts`**: Defines the data structure and content for the magazine templates (Vogue, Time, etc.).
+- **`image-utils.ts`**: Provides utilities for handling base64 conversion and browser-based image resizing.
 - **`store.ts`**: The Zustand store for global application state.
 - **`utils.ts`**: Contains the `cn()` utility for merging Tailwind CSS classes.
+
+## Development Scripts
+
+- **`scripts/generate-thumbnails.mts`**: A specialized script that pre-generates magazine thumbnails using the Gemini API to ensure the gallery selection feels real.
 
 ## Styling
 
 The application uses **Tailwind CSS 4** with utility classes. Global styles are defined in `app/globals.css`. Animations are powered by `motion/react`, providing smooth transitions between generation steps.
-
-## Layout and Metadata
-
-- **`layout.tsx`**: Defines the root HTML structure, imports fonts (Inter), and wraps the application with necessary providers.
-- **`metadata.json`**: Contains the application's name, description, and required frame permissions (camera, microphone, geolocation).
 
 ---
 *For data models and API details, see [API_AND_DATA.md](./API_AND_DATA.md).*
