@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import "@/lib/env"; // Import strict environment validation
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -19,6 +20,29 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "CoverStar | The Luxury AI Magazine Studio",
   description: "Become a magazine cover star with AI. Elegant, high-end, and sophisticated.",
+  keywords: ["AI", "Magazine", "Cover", "Luxury", "Studio", "Photography"],
+  authors: [{ name: "CoverStar Team" }],
+  openGraph: {
+    title: "CoverStar | The Luxury AI Magazine Studio",
+    description: "Your face, every cover. Premium AI magazine synthesis.",
+    url: process.env.NEXTAUTH_URL || "https://coverstar.pro",
+    siteName: "CoverStar",
+    images: [
+      {
+        url: `${process.env.NEXTAUTH_URL || "https://coverstar.pro"}/thumbnails/vogue.jpg`,
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CoverStar | The Luxury AI Magazine Studio",
+    description: "Your face, every cover. Premium AI magazine synthesis.",
+    images: [`${process.env.NEXTAUTH_URL || "https://coverstar.pro"}/thumbnails/vogue.jpg`],
+  },
   manifest: "/manifest.json",
 };
 

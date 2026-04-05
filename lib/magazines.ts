@@ -703,7 +703,7 @@ export const MAGAZINES: Magazine[] = [
     logoStyle: "Industrial sans-serif",
     logoColor: "Red/Black",
     thumbnail: "/thumbnails/popular-mechanics.jpg",
-    thumbnailMale: "/thumbnails/popular-mechanics-male.jpg",
+    thumbnailMale: "/thumbnails/popular-mechanics-male.png",
     thumbnailFemale: "/thumbnails/popular-mechanics-female.jpg",
     editorialPersona: "You are the Editor of Popular Mechanics, America's DIY bible since 1902. You explain how things WORK. You are the bridge between complex engineering and the average curious person. Your reader has a garage full of tools and a mind full of questions. You love cars, space, tools, and building things. You make science hands-on and practical.",
     targetAudience: "DIY enthusiasts 35-60, engineers, makers, car lovers, tool collectors, curious minds",

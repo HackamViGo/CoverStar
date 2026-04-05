@@ -30,11 +30,26 @@ export default function RegisterPage() {
   const router = useRouter();
   const setProfile = useAppStore((state) => state.setProfile);
 
+  const allAgreed = Object.values(agreements).every(Boolean);
+
+  const handleMarkAllChange = () => {
+    const newValue = !allAgreed;
+    setAgreements({
+      terms: newValue,
+      aiGenerated: newValue,
+      entertainmentOnly: newValue,
+      noAffiliation: newValue,
+      userApiKey: newValue,
+      privacy: newValue,
+      noCommercial: newValue,
+      notLiability: newValue,
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate all agreements
-    const allAgreed = Object.values(agreements).every(Boolean);
     if (!allAgreed) {
       toast.error("Please agree to all terms and conditions to register.");
       return;
@@ -231,6 +246,19 @@ export default function RegisterPage() {
                   />
                   <Label htmlFor="notLiability" className="text-[10px] leading-tight cursor-pointer text-gold/60 uppercase tracking-tighter">
                     I acknowledge that the service provider is Not Liable
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-3 mt-2 border-t border-gold/20">
+                  <input
+                    type="checkbox"
+                    id="markAll"
+                    checked={allAgreed}
+                    onChange={handleMarkAllChange}
+                    className="h-5 w-5 rounded border-gold bg-obsidian text-gold focus:ring-gold"
+                  />
+                  <Label htmlFor="markAll" className="text-[12px] leading-none cursor-pointer text-gold font-bold uppercase tracking-widest underline decoration-gold/50 underline-offset-4">
+                    Mark All Agreements
                   </Label>
                 </div>
               </div>

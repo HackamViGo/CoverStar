@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 export async function middleware(req: NextRequest) {
-  const secret = process.env.NEXTAUTH_SECRET || "coverstar-secret-key-123"
+  const secret = process.env.NEXTAUTH_SECRET
   
   // Try to get token with secureCookie: true since we forced it in route.ts
   const token = await getToken({ 

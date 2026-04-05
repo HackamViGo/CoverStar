@@ -5,9 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/lib/store";
 import { MAGAZINES, Magazine } from "@/lib/magazines";
-import { generateCreativeBrief, generateFallbackBrief, type CreativeBrief } from "@/lib/creative-director";
-import { buildImagePrompt } from "@/lib/prompt-builder";
-import { GoogleGenAI } from "@google/genai";
+import { type CreativeBrief } from "@/lib/creative-director";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -198,156 +196,111 @@ export default function HomePage() {
   };
 
   const handleGenerate = async () => {
-    if (!image || !selectedMagazine || !apiKey) return;
+    if (!image || !selectedMagazine) return;
 
     setGenerating(true);
     setShowAd(true);
     setResult(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
       const gender = (profile?.gender as "male" | "female") || "female";
-
-      // Determine the effective cover star gender.
-      // For unisex magazines, the cover star gender matches the user's profile gender.
-      // For gendered magazines, use the magazine's defined gender.
-      // Special case: Maxim's cover star is always female regardless of user gender.
       let coverStarGender: "male" | "female" = gender;
+      
       if (selectedMagazine.gender !== "unisex") {
-        // For strongly gendered magazines like Vogue (female) or Men's Health (male),
-        // the cover star gender is determined by who would realistically be on the cover.
-        // Since the user already filtered magazines by their own gender in the UI,
-        // coverStarGender = gender is correct.
         coverStarGender = gender;
       }
-      // Maxim override: cover star is almost always female
       if (selectedMagazine.id === "maxim" && selectedMagazine.coverStarGender) {
         coverStarGender = selectedMagazine.coverStarGender as "male" | "female";
       }
 
-      // ============================================================
-      // PHASE 1: Creative Director (gemini-2.5-flash-lite — ~0.5s)
-      // ============================================================
-      let brief: CreativeBrief;
-
-      try {
-        brief = await generateCreativeBrief(apiKey, selectedMagazine, coverStarGender);
-        
-        if (process.env.NODE_ENV === "development") {
-          console.log("[Phase 1] ✅ Creative brief generated:", JSON.stringify(brief, null, 2));
-        }
-      } catch (phase1Error: unknown) {
-        // DEV-ONLY FALLBACK: use enhanced static pools from magazine DNA
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[Phase 1] ❌ Failed, using fallback:", phase1Error);
-          brief = generateFallbackBrief(selectedMagazine);
-          console.log("[Phase 1 Fallback] 🔄 Brief:", JSON.stringify(brief, null, 2));
-        } else {
-          // PRODUCTION: propagate the error — user sees a toast
-          const message = phase1Error instanceof Error ? phase1Error.message : "Creative brief generation failed";
-          throw new Error(message);
-        }
-      }
-
-      // ============================================================
-      // PHASE 2: Image Synthesis (gemini-2.5-flash-image — ~10-15s)
-      // ============================================================
-      const prompt = buildImagePrompt(
-        selectedMagazine,
-        brief,
-        coverStarGender,
-        profile?.name
-      );
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[Phase 2] 🎨 Prompt length:", prompt.length, "chars");
-        console.log("[Phase 2] 📝 Full prompt:\n", prompt);
-      }
-
-      // Resize image to avoid "invalid image" errors with large payloads or extreme resolutions
-      // This also converts any format (PNG, WebP, etc.) to a standard JPEG that Gemini supports well
-      // 768px is a safe dimension that provides good quality while keeping the payload manageable
-      const resizedImage = await resizeImage(image, 768, 0.8);
-
-      // Extract base64 data from the resized image
-      const base64Data = resizedImage.split(",")[1];
-      const mimeType = "image/jpeg"; // resizeImage utility now exports as image/jpeg
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[Phase 2] 🖼️ Image data length:", base64Data.length);
-        console.log("[Phase 2] 🖼️ MIME type:", mimeType);
-      }
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType,
-              },
-            },
-            { text: prompt },
-          ],
+      // 1. Generate Brief via API
+      const briefResponse = await fetch("/api/generate/brief", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
         },
-        config: {
-          imageConfig: {
-            aspectRatio: "3:4",
-          },
-        },
+        body: JSON.stringify({
+          magazineId: selectedMagazine.id,
+          gender: coverStarGender,
+        }),
       });
 
-      // ============================================================
-      // RESPONSE PARSING
-      // ============================================================
-      let imageUrl = "";
-      let responseText = "";
+      if (!briefResponse.ok) {
+        const errorData = await briefResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate brief");
+      }
 
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const outputMime = part.inlineData.mimeType || "image/png";
-            imageUrl = `data:${outputMime};base64,${part.inlineData.data}`;
-            break;
-          } else if (part.text) {
-            responseText += part.text;
+      const brief = await briefResponse.json();
+
+      // 2. Generate Image via API
+      const resizedImage = await resizeImage(image, 768, 0.8);
+      const base64Data = resizedImage.split(",")[1];
+
+      const imageResponse = await fetch("/api/generate/image", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          magazineId: selectedMagazine.id,
+          brief,
+          gender: coverStarGender,
+          userName: profile?.name,
+          imageBase64: base64Data
+        }),
+      });
+
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Image generation failed");
+      }
+
+      if (!imageResponse.body) throw new Error("No response body");
+      
+      const reader = imageResponse.body.getReader();
+      const decoder = new TextDecoder();
+      let imageUrl = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        let currentEvent = '';
+        
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.substring(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const dataStr = line.substring(6).trim();
+            if (!dataStr) continue;
+            
+            try {
+              const data = JSON.parse(dataStr);
+              if (currentEvent === 'progress') {
+                // We expect status updates from the stream
+              } else if (currentEvent === 'success') {
+                imageUrl = data.imageUrl;
+              } else if (currentEvent === 'error') {
+                throw new Error(data.message || "Failed to generate image");
+              }
+            } catch (e) {
+              if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
+                if (currentEvent === 'error') throw e;
+              }
+            }
           }
         }
       }
 
-      // ============================================================
-      // ERROR HANDLING
-      // ============================================================
       if (!imageUrl) {
-        const candidate = response.candidates?.[0];
-        const finishReason = candidate?.finishReason;
-
-        if (finishReason === "SAFETY") {
-          throw new Error(
-            "The image was blocked by safety filters. Please try a different photo or magazine style."
-          );
-        }
-        if (finishReason === "RECITATION") {
-          throw new Error(
-            "The image was blocked due to copyright/recitation filters. Try a different magazine."
-          );
-        }
-        if (finishReason === "OTHER") {
-          throw new Error(
-            "Generation failed for an unknown reason. This can happen with complex prompts. Please try again."
-          );
-        }
-
-        throw new Error(
-          responseText ||
-            `Failed to generate image (Status: ${finishReason || "No Response"}). Please try again or check your API key.`
-        );
+        throw new Error("Failed to extract image from stream");
       }
 
-      // ============================================================
-      // SUCCESS: Save cover and navigate
-      // ============================================================
       const cover = {
         id: Date.now().toString(),
         imageUrl: imageUrl,
@@ -358,17 +311,9 @@ export default function HomePage() {
       addCover(cover);
       router.push(`/result/${cover.id}`);
 
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Generation error:", error);
-
-      const message = error instanceof Error ? error.message : "Failed to generate cover";
-
-      if (message.includes("429")) {
-        toast.error("Quota exceeded. Please check your plan and billing at ai.google.dev.");
-      } else {
-        toast.error(message);
-      }
-
+      toast.error(error.message || "Failed to generate cover");
       setShowAd(false);
       setGenerating(false);
     }

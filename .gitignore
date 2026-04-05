@@ -9,3 +9,9 @@ coverage/
 .env*
 !.env.example
 
+# Tests
+__tests__/
+e2e/
+.jest-cache/
+jest-results.json
+

@@ -16,13 +16,38 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showGenderSelection, setShowGenderSelection] = useState(false);
-  const [tempProfile, setTempProfile] = useState<any>(null);
+  const [error, setError] = useState("");
   const router = useRouter();
   const setProfile = useAppStore((state) => state.setProfile);
 
+  const validateEmail = (e: string) => {
+    return String(e)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
+    if (!email) {
+      setError("Email and password are required");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError("Invalid email format");
+      toast.error("Invalid email format");
+      return;
+    }
+
+    if (!password) {
+      setError("Email and password are required");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,77 +58,28 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
+        setError("Invalid credentials");
         toast.error("Invalid credentials");
       } else {
-        // In a real app, we'd fetch the profile from the server
-        // For this demo, we'll check if a profile exists in localStorage
-        const storedProfile = localStorage.getItem("coverstar-profile");
-        let profile = { email, name: email.split("@")[0], gender: "female" as const };
-        
-        if (storedProfile) {
-          const parsed = JSON.parse(storedProfile);
+        const profile = { email, name: email.split("@")[0], gender: "female" as const };
+        const stored = localStorage.getItem("coverstar-profile");
+        if (stored) {
+          const parsed = JSON.parse(stored);
           if (parsed.email === email) {
-            profile = parsed;
+            profile.gender = parsed.gender;
           }
         }
-        
-        setTempProfile(profile);
-        setShowGenderSelection(true);
-        toast.success("Logged in successfully. Please select your gender.");
+        setProfile(profile);
+        localStorage.setItem("coverstar-profile", JSON.stringify(profile));
+        toast.success("Welcome back to the Studio");
+        router.push("/");
       }
-    } catch (error) {
-      toast.error("An error occurred during login");
+    } catch (err) {
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
-
-  const handleGenderSelect = (gender: "male" | "female") => {
-    const updatedProfile = { ...tempProfile, gender };
-    localStorage.setItem("coverstar-profile", JSON.stringify(updatedProfile));
-    setProfile(updatedProfile);
-    toast.success(`Gender set to ${gender}`);
-    window.location.href = "/";
-  };
-
-  if (showGenderSelection) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-black">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md"
-        >
-          <Card className="border-zinc-800 bg-zinc-950 text-white">
-            <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-3xl font-bold tracking-tighter">Select Gender</CardTitle>
-              <CardDescription className="text-zinc-400">
-                Choose your preference for magazine covers
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-32 flex flex-col items-center justify-center space-y-2 border-zinc-800 hover:bg-zinc-900"
-                onClick={() => handleGenderSelect("female")}
-              >
-                <span className="text-4xl">👩</span>
-                <span>Female</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-32 flex flex-col items-center justify-center space-y-2 border-zinc-800 hover:bg-zinc-900"
-                onClick={() => handleGenderSelect("male")}
-              >
-                <span className="text-4xl">👨</span>
-                <span>Male</span>
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-black">
@@ -119,15 +95,21 @@ export default function LoginPage() {
               The Elite AI Magazine Studio
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-6">
+              {error && (
+                <div className="p-3 bg-ruby/10 border border-ruby/20 rounded-xl text-center">
+                  <p className="text-ruby text-[10px] uppercase tracking-widest font-bold">
+                    {error}
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gold/70 text-[10px] uppercase tracking-widest font-bold">Email Address</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="excellence@luxury.com"
-                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-obsidian/50 border-gold/20 focus:ring-gold/50"
@@ -138,7 +120,6 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-obsidian/50 border-gold/20 focus:ring-gold/50"
@@ -150,9 +131,9 @@ export default function LoginPage() {
                 {loading ? "Authenticating..." : "Sign In to Studio"}
               </Button>
               <p className="text-xs text-center text-gold/40">
-                New to the elite circle?{" "}
+                New here?{" "}
                 <Link href="/register" className="text-gold hover:underline font-bold">
-                  Request Access
+                  Register for access
                 </Link>
               </p>
             </CardFooter>

@@ -4,18 +4,14 @@
   "description": "Become a magazine cover star with AI",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#050505",
+  "theme_color": "#D4AF37",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/coverstar/192/192",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://picsum.photos/seed/coverstar/512/512",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

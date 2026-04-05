@@ -63,6 +63,15 @@ export default function SettingsScreen() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center justify-center w-full py-4 bg-gold border border-gold rounded-lg text-obsidian font-bold text-lg uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all underline decoration-obsidian/50 underline-offset-4"
+            >
+              Go to Google AI Studio <ExternalLink className="w-5 h-5 ml-2 text-obsidian" />
+            </a>
+
             <div className="space-y-4">
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-start space-x-3">
@@ -70,7 +79,7 @@ export default function SettingsScreen() {
                     <span className="text-xs font-bold text-gold">{step}</span>
                   </div>
                   <p className="text-sm text-gold/60">
-                    {step === 1 && <>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline inline-flex items-center">Google AI Studio <ExternalLink className="w-3 h-3 ml-1" /></a>.</>}
+                    {step === 1 && <>Ensure you are logged in to your Google Account.</>}
                     {step === 2 && <>Click on the <span className="font-bold text-gold">"Create API key"</span> button.</>}
                     {step === 3 && <>Copy the generated key and paste it into the application.</>}
                   </p>
@@ -124,7 +133,7 @@ export default function SettingsScreen() {
               <div className="flex items-center space-x-2">
                 <Key className="w-4 h-4 lg:w-4 lg:h-4 text-gold/50" />
                 <Label htmlFor="apiKey" className="text-[10px] lg:text-[10px] uppercase tracking-widest text-gold/50 font-bold">
-                  Gemini AI Credentials
+                  Gemini AI API Key
                 </Label>
               </div>
               <div className="relative">
@@ -141,6 +150,13 @@ export default function SettingsScreen() {
                     <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-emerald" />
                   </div>
                 )}
+              </div>
+              
+              <div className="p-2 border border-ruby/30 bg-ruby/5 rounded flex items-start space-x-2">
+                <AlertTriangle className="w-3 h-3 text-ruby mt-0.5 flex-shrink-0" />
+                <p className="text-[9px] text-ruby/80 uppercase tracking-wider leading-tight">
+                  <strong>Security Note:</strong> Your key is stored locally in your browser and passed securely via HTTPS headers to our servers. It is never logged.
+                </p>
               </div>
               <Button
                 variant="luxury-emerald"
@@ -213,7 +229,7 @@ export default function SettingsScreen() {
 
       <div className="flex-shrink-0 flex items-center justify-center space-x-2 text-[9px] lg:text-[10px] text-gold/30 uppercase tracking-widest font-bold mt-4">
         <Info className="w-3 h-3 lg:w-3 lg:h-3" />
-        <span>Encrypted local storage active</span>
+        <span>Local profile storage active</span>
       </div>
     </motion.div>
   );
