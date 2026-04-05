@@ -4,6 +4,9 @@ import { getToken } from 'next-auth/jwt'
 
 export async function middleware(req: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET is not configured. Please set it in your .env file.')
+  }
   
   // Try to get token with secureCookie: true since we forced it in route.ts
   const token = await getToken({ 
@@ -14,6 +17,7 @@ export async function middleware(req: NextRequest) {
   
   const { pathname } = req.nextUrl
   
+  // Protected routes
   if (pathname === '/' || pathname === '/gallery') {
     if (!token) {
       return NextResponse.redirect(new URL('/login', req.url))

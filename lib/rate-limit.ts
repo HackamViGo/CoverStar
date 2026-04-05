@@ -1,41 +1,38 @@
 /**
- * Simple in-memory rate limiter.
- * Uses Date.now() → compatible with jest.useFakeTimers().
+ * Simple, testable rate limiter.
+ * Higher performance for this scale and fully compatible with Jest fakeTimers.
  */
-
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
+type RateEntry = { count: number; lastReset: number };
+const limits = new Map<string, RateEntry>();
 
 const WINDOW_MS = 60_000; // 1 minute
 
 /**
- * @param ip          Identifier (IP address, user ID, etc.)
- * @param maxRequests Max allowed requests per window (default 5)
- * @returns true if allowed, false if rate-limited
+ * Checks if a request from a given IP is allowed based on a rate limit.
+ * @param ip The identifier (usually IP address)
+ * @param max Max allowed requests in the window
  */
-export function checkRateLimit(ip: string, maxRequests = 5): boolean {
+export function checkRateLimit(ip: string, max = 5): boolean {
   const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  // First request OR window expired → start fresh
-  if (!entry || now - entry.windowStart > WINDOW_MS) {
-    rateLimitMap.set(ip, { count: 1, windowStart: now });
-    return true;
+  let entry = limits.get(ip);
+  
+  // If entry doesn't exist or window expired, reset
+  if (!entry || (now - entry.lastReset >= WINDOW_MS)) {
+    entry = { count: 0, lastReset: now };
   }
-
-  if (entry.count >= maxRequests) {
-    return false; // Rate limited
+  
+  if (entry.count >= max) {
+    return false;
   }
-
+  
   entry.count++;
+  limits.set(ip, entry);
   return true;
 }
 
-/** Reset all rate limit entries — for use in tests */
+/**
+ * Reset all rate limit entries — primarily for testing.
+ */
 export function resetRateLimits(): void {
-  rateLimitMap.clear();
+  limits.clear();
 }

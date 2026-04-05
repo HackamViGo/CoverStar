@@ -66,7 +66,8 @@ export default function LoginPage() {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed.email === email) {
-            profile.gender = parsed.gender;
+            profile.name = parsed.name || profile.name;
+            profile.gender = parsed.gender || profile.gender;
           }
         }
         setProfile(profile);

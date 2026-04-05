@@ -1,0 +1,104 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo ""
+echo "🔀 POST-MERGE: Проверявам за промени..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+CHANGED=$(git diff HEAD@{1} HEAD --name-only 2>/dev/null)
+
+# ============================================================
+# npm install
+#
+# FIX 1 — Следим и package-lock.json:
+#   Старо: проверява само package.json
+#          → Ако се ъпдейтне само под-зависимост,
+#            package.json не се мени, но package-lock.json — да!
+#            Резултат: стар node_modules, странни грешки
+#
+#   Ново:  проверяваме И двата файла
+#          → По-надеждно хващане на всяка dependency промяна
+# ============================================================
+if echo "$CHANGED" | grep -qE "^package(-lock)?\.json$"; then
+  echo ""
+  echo "📦 Открита е промяна в dependencies!"
+  echo ""
+
+  # Покажи кой точно файл се е променил
+  if echo "$CHANGED" | grep -q "^package-lock\.json$" && \
+     ! echo "$CHANGED" | grep -q "^package\.json$"; then
+    echo "   📄 package-lock.json (под-зависимост е обновена)"
+  elif echo "$CHANGED" | grep -q "^package\.json$"; then
+    echo "   📄 package.json (директна зависимост е добавена/премахната)"
+    echo ""
+    echo "   📋 Промени:"
+    git diff HEAD@{1} HEAD -- package.json | \
+      grep -E '^\+.*"' | \
+      grep -v "^+++" | \
+      head -20 | \
+      while IFS= read -r line; do
+        echo "      $line"
+      done
+  fi
+
+  echo ""
+  printf "❓ Да инсталирам зависимостите сега? [y/N]: "
+  read REPLY </dev/tty
+
+  if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
+    echo "⏳ Инсталирам..."
+    npm install
+    if [ $? -ne 0 ]; then
+      echo "❌ npm install FAILED!"
+      exit 1
+    fi
+    echo "✅ Dependencies: обновени"
+  else
+    echo ""
+    echo "⚠️  НАПОМНЯНЕ: Пусни 'npm install' преди да стартираш!"
+  fi
+else
+  echo "ℹ️  package.json и package-lock.json непроменени"
+fi
+
+# ============================================================
+# .env.example
+# ============================================================
+if echo "$CHANGED" | grep -q "\.env\.example"; then
+  echo ""
+  echo "┌─────────────────────────────────────┐"
+  echo "│  ⚠️  .env.example се е ПРОМЕНИЛ!    │"
+  echo "└─────────────────────────────────────┘"
+  echo ""
+  echo "📋 Нови/променени env vars:"
+  git diff HEAD@{1} HEAD -- .env.example | \
+    grep -E '^\+[^+]' | \
+    sed 's/^+/  + /'
+  echo ""
+  echo "👉 Обнови .env.local с липсващите стойности!"
+fi
+
+# ============================================================
+# DB Migrations
+# ============================================================
+if echo "$CHANGED" | grep -qE "prisma/migrations|\.sql$"; then
+  echo ""
+  echo "┌─────────────────────────────────────┐"
+  echo "│  🗄️  Открити са нови MIGRATIONS!    │"
+  echo "└─────────────────────────────────────┘"
+  echo "👉 Пусни: npx prisma migrate dev"
+  echo "   (скриптът не го прави автоматично)"
+fi
+
+# ============================================================
+# next.config.ts
+# ============================================================
+if echo "$CHANGED" | grep -q "next\.config"; then
+  echo ""
+  echo "⚠️  next.config.ts се е променил!"
+  echo "👉 Рестартирай dev сървъра: Ctrl+C → npm run dev"
+fi
+
+echo ""
+echo "✅ POST-MERGE: Готов за работа!"
+echo ""

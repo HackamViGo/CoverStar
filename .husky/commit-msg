@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo ""
+echo "📝 COMMIT-MSG: Валидирам съобщението..."
+
+# Пусни commitlint
+npx --no -- commitlint --edit "$1"
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ НЕВАЛИДЕН COMMIT FORMAT!"
+  echo ""
+  echo "📋 Правилен формат:"
+  echo "   <type>(<scope>): <описание>"
+  echo ""
+  echo "📌 Типове:"
+  echo "   feat     → нова функционалност"
+  echo "   fix      → поправка на бъг"
+  echo "   security → security fix"
+  echo "   test     → добавяне на тестове"
+  echo "   refactor → рефакторинг"
+  echo "   style    → форматиране"
+  echo "   docs     → документация"
+  echo "   chore    → конфигурация, deps"
+  echo "   perf     → performance"
+  echo ""
+  echo "✅ Примери:"
+  echo "   feat(auth): добави bcrypt валидация"
+  echo "   fix(gallery): поправи delete бутон"
+  echo "   security(middleware): премахни hardcoded secret"
+  echo "   test(gallery): добави тестове за empty state"
+  echo ""
+  exit 1
+fi
+
+echo "✅ COMMIT-MSG: Форматът е коректен!"
+echo ""

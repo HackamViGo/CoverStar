@@ -35,7 +35,8 @@ function getRandomSublines(magazine: Magazine): string[] {
 export async function generateCreativeBrief(
   apiKey: string,
   magazine: Magazine,
-  gender: "male" | "female" | "unisex"
+  gender: "male" | "female" | "unisex",
+  topic?: string
 ): Promise<CreativeBrief> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -57,6 +58,7 @@ CLOTHING DIRECTION: ${magazine.clothingGuide}
 POSE DIRECTION: ${magazine.poseGuide}
 
 The cover star is a ${gender === "unisex" ? "person" : gender === "male" ? "man" : "woman"}.
+${topic ? `THEME/TOPIC: ${topic}` : ""}
 
 Generate a UNIQUE creative brief. Do NOT repeat these reference examples, but match their STYLE and TONE:
 Reference headlines (for style only, DO NOT copy): ${magazine.referenceHeadlines.slice(0, 5).join(", ")}

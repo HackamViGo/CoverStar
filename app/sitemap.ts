@@ -1,31 +1,31 @@
-import type { MetadataRoute } from 'next';
+import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl =
-    process.env.NEXTAUTH_URL?.replace(/\/$/, '') || 'https://coverstar.pro';
+  const base = process.env.NEXTAUTH_URL ?? 'https://coverstar.pro';
+  const now = new Date();
 
   return [
     {
-      url: `${baseUrl}/`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
+      url: `${base}/`,
+      lastModified: now,
+      changeFrequency: 'weekly',
       priority: 1,
     },
     {
-      url: `${baseUrl}/gallery`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
+      url: `${base}/gallery`,
+      lastModified: now,
+      changeFrequency: 'daily',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/login`,
-      lastModified: new Date(),
+      url: `${base}/login`,
+      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/register`,
-      lastModified: new Date(),
+      url: `${base}/register`,
+      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.5,
     },

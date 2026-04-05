@@ -17,7 +17,10 @@ const playfair = Playfair_Display({
   style: ["normal", "italic"],
 });
 
+const BASE_URL = process.env.NEXTAUTH_URL ?? 'https://coverstar.pro';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(BASE_URL),
   title: "CoverStar | The Luxury AI Magazine Studio",
   description: "Become a magazine cover star with AI. Elegant, high-end, and sophisticated.",
   keywords: ["AI", "Magazine", "Cover", "Luxury", "Studio", "Photography"],
@@ -25,13 +28,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CoverStar | The Luxury AI Magazine Studio",
     description: "Your face, every cover. Premium AI magazine synthesis.",
-    url: process.env.NEXTAUTH_URL || "https://coverstar.pro",
+    url: BASE_URL,
     siteName: "CoverStar",
     images: [
       {
-        url: `${process.env.NEXTAUTH_URL || "https://coverstar.pro"}/thumbnails/vogue.jpg`,
+        url: `${BASE_URL}/thumbnails/vogue.jpg`,
         width: 1200,
         height: 630,
+        alt: 'CoverStar — AI Magazine Cover Generator',
       },
     ],
     locale: "en_US",
@@ -41,7 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CoverStar | The Luxury AI Magazine Studio",
     description: "Your face, every cover. Premium AI magazine synthesis.",
-    images: [`${process.env.NEXTAUTH_URL || "https://coverstar.pro"}/thumbnails/vogue.jpg`],
+    images: [`${BASE_URL}/thumbnails/vogue.jpg`],
   },
   manifest: "/manifest.json",
 };

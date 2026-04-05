@@ -1,0 +1,131 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+REMOTE=$1
+
+echo ""
+echo "🚀 PRE-PUSH: Подготвям се за push..."
+echo "📌 Branch: $BRANCH → Remote: $REMOTE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ============================================================
+# ЗАЩИТА НА MAIN/MASTER
+# ============================================================
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || [ "$BRANCH" = "prod" ]; then
+  echo ""
+  echo "🚨 ДИРЕКТЕН PUSH КЪМ КРИТИЧЕН BRANCH ($BRANCH) Е ЗАБРАНЕН!"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "💡 Използвай Pull Request и изчакай CI проверките."
+  echo ""
+  exit 1
+fi
+
+# ============================================================
+# ПЪЛНИ ТЕСТОВЕ — за всички branch-ове
+# ============================================================
+echo "🧪 Стъпка 1/3: Пълни unit тестове..."
+npm run test:ci
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ ТЕСТОВЕТЕ FAILED — Push отменен!"
+  echo "💡 Пусни 'npm run test:all' за детайли"
+  exit 1
+fi
+echo "✅ Тестове: OK"
+
+# ============================================================
+# BUILD CHECK
+#
+# FIX 1 — Само за важни branch-ове:
+#   Старо: build се пуска при ВСЕКИ push
+#          → 2-3 минути чакане дори за малки промени
+#
+#   Ново:  build само за develop/staging/release/* branch-ове
+#          → За feature/* и fix/* → само тестове (бързо)
+#          → За develop/staging   → пълен build (сигурно)
+# ============================================================
+echo ""
+echo "🏗️  Стъпка 2/3: Build проверка..."
+
+# Определи дали branch-ът изисква build
+NEEDS_BUILD=false
+case "$BRANCH" in
+  develop|staging|release/*|hotfix/*)
+    NEEDS_BUILD=true
+    ;;
+  feature/*|fix/*|test/*|chore/*|refactor/*)
+    NEEDS_BUILD=false
+    ;;
+  *)
+    NEEDS_BUILD=false
+    ;;
+esac
+
+if [ "$NEEDS_BUILD" = "true" ]; then
+  echo "📌 Branch '$BRANCH' изисква build проверка..."
+  npm run build
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ BUILD FAILED — Поправи build грешките!"
+    exit 1
+  fi
+  echo "✅ Build: OK"
+else
+  echo "ℹ️  Branch '$BRANCH' → Build се пропуска (CI ще го провери)"
+  echo "   💡 Build се пуска автоматично за: develop, staging, release/*, hotfix/*"
+fi
+
+# ============================================================
+# DEPENDENCY AUDIT
+#
+# FIX 2 — Честен статус:
+#   Старо: echo "✅ Audit: OK"  ← дори при 10 критични уязвимости!
+#
+#   Ново:  Запазваме exit code на npm audit и показваме
+#          честен статус: ✅ OK или ⚠️ WARNINGS
+#          + Питаме потребителя дали да продължи
+# ============================================================
+echo ""
+echo "🔐 Стъпка 3/3: Dependency security audit..."
+
+# Записваме output-а и exit code-а поотделно
+AUDIT_OUTPUT=$(npm audit --audit-level=high 2>&1)
+AUDIT_EXIT=$?
+
+if [ $AUDIT_EXIT -ne 0 ]; then
+  echo ""
+  echo "┌─────────────────────────────────────────┐"
+  echo "│  ⚠️  AUDIT: Открити са HIGH уязвимости  │"
+  echo "└─────────────────────────────────────────┘"
+  echo ""
+  # Показваме само summary реда — не целия output
+  echo "$AUDIT_OUTPUT" | grep -E '(vulnerabilit|npm audit fix)' | head -5
+  echo ""
+  echo "💡 За да поправиш:"
+  echo "   npm audit fix          ← автоматична поправка"
+  echo "   npm audit fix --force  ← force (внимавай!)"
+  echo "   npm audit              ← пълен доклад"
+  echo ""
+
+  printf "❓ Продължи push-а въпреки уязвимостите? [y/N]: "
+  read REPLY </dev/tty
+
+  if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
+    echo ""
+    echo "❌ Push отменен. Поправи уязвимостите първо."
+    exit 1
+  fi
+
+  # FIX 2: Честен статус — не казваме OK при warnings!
+  echo ""
+  echo "⚠️  Audit: WARNINGS (потвърдено от потребителя)"
+else
+  # Само тогава казваме OK
+  echo "✅ Audit: Няма HIGH уязвимости"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ PRE-PUSH: Всичко е наред! Качвам..."
+echo ""

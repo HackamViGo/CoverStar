@@ -229,7 +229,7 @@ export default function SettingsScreen() {
 
       <div className="flex-shrink-0 flex items-center justify-center space-x-2 text-[9px] lg:text-[10px] text-gold/30 uppercase tracking-widest font-bold mt-4">
         <Info className="w-3 h-3 lg:w-3 lg:h-3" />
-        <span>Local profile storage active</span>
+        <span>Stored locally in your browser</span>
       </div>
     </motion.div>
   );

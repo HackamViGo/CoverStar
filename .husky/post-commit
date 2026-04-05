@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+COMMIT_HASH=$(git rev-parse --short HEAD)
+COMMIT_MSG=$(git log -1 --pretty=%s)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+AUTHOR=$(git config user.name)
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ COMMIT УСПЕШЕН!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  🔑 Hash:    $COMMIT_HASH"
+echo "  📝 Message: $COMMIT_MSG"
+echo "  🌿 Branch:  $BRANCH"
+echo "  👤 Author:  $AUTHOR"
+echo "  🕐 Time:    $TIMESTAMP"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "💡 Следващи стъпки:"
+echo "   git push origin $BRANCH    ← качи промените"
+echo "   npm run test:watch         ← продължи разработката"
+echo ""

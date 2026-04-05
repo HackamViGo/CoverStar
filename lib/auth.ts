@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import path from 'path';
 
 const BCRYPT_ROUNDS = 12;
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 export interface User {
   id: string;
@@ -9,8 +13,17 @@ export interface User {
   hashedPassword: string;
 }
 
-// In-memory demo store — in production replace with a real DB
-const DEMO_USERS: User[] = [];
+/**
+ * Ensures the data directory and users file exist.
+ */
+function ensureDataFile() {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!existsSync(USERS_FILE)) {
+    writeFileSync(USERS_FILE, JSON.stringify([]), 'utf-8');
+  }
+}
 
 /**
  * Hash a password with bcrypt (12 rounds minimum).
@@ -43,25 +56,37 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     return null;
   }
 
-  const user = DEMO_USERS.find((u) => u.email === email);
-  return user ?? null;
+  ensureDataFile();
+  try {
+    const users: User[] = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
+    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    return user ?? null;
+  } catch (error) {
+    console.error('Error reading users file:', error);
+    return null;
+  }
 }
 
 /**
- * Register a new demo user (utility for seeding / integration tests).
+ * Register a new user.
  */
 export async function createUser(
   name: string,
   email: string,
   password: string
 ): Promise<User> {
+  ensureDataFile();
   const hashedPassword = await hashPassword(password);
   const user: User = {
     id: crypto.randomUUID(),
     name,
-    email,
+    email: email.toLowerCase(),
     hashedPassword,
   };
-  DEMO_USERS.push(user);
+
+  const users: User[] = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
+  users.push(user);
+  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  
   return user;
 }

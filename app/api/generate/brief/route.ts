@@ -6,32 +6,11 @@ import { MAGAZINES } from '@/lib/magazines';
 const briefSchema = z.object({
   magazineId: z.string().min(1),
   gender: z.enum(['male', 'female', 'unisex']).optional().default('female'),
-  topic: z.string().max(500).optional(),
+  topic: z.string().min(3).max(500),
 });
 
-// ---------------------------------------------------------------------------
-// Google AI Compatibility Adapter
-// ---------------------------------------------------------------------------
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const _genai = require('@google/genai') as any;
-const GoogleGenerativeAI = 
-  _genai.GoogleGenerativeAI || 
-  (class {
-    private key: string;
-    constructor(apiKey: string) { this.key = apiKey; }
-    getGenerativeModel({ model }: { model: string }) {
-      return {
-        generateContent: async (prompt: string) => {
-          const { GoogleGenAI } = _genai;
-          const ai = new GoogleGenAI({ apiKey: this.key });
-          return await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
-        }
-      };
-    }
-  });
-
-export async function POST(req: Request) {
-  // 1. Authorization (MUST BE FIRST)
+export async function POST(req: Request): Promise<Response> {
+  // 1. Authorization
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
@@ -44,7 +23,7 @@ export async function POST(req: Request) {
 
   try {
     const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-    if (!checkRateLimit(ip, 12)) { // Increased for tests
+    if (!checkRateLimit(ip, 12)) {
       return new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429, headers: { 'Content-Type': 'application/json' } });
     }
 
@@ -65,11 +44,11 @@ export async function POST(req: Request) {
     if (!magazine) return new Response(JSON.stringify({ error: 'Magazine not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
     // AI Generation via shared library
-    const brief = await generateCreativeBrief(apiKey, magazine, gender as any);
+    const brief = await generateCreativeBrief(apiKey, magazine, gender as any, topic);
 
     return new Response(JSON.stringify(brief), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('Brief API Error:', error.message);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }

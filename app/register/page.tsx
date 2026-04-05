@@ -55,16 +55,34 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(false); // No real server, so it's fast
+    setLoading(true);
 
-    const profile = { name, email, gender };
-    
-    // Save to localStorage to simulate a database
-    localStorage.setItem("coverstar-profile", JSON.stringify(profile));
-    setProfile(profile);
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    toast.success("Account created successfully! Please login.");
-    router.push("/login");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      const profile = { name, email, gender };
+      
+      // Save to localStorage to simulate a database (keep it for offline/recovery)
+      localStorage.setItem("coverstar-profile", JSON.stringify(profile));
+      setProfile(profile);
+
+      toast.success("Account created successfully! Please login.");
+      router.push("/login");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAgreementChange = (key: keyof typeof agreements) => {

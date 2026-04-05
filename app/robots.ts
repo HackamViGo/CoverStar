@@ -1,17 +1,17 @@
-import type { MetadataRoute } from 'next';
+import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl =
-    process.env.NEXTAUTH_URL?.replace(/\/$/, '') || 'https://coverstar.pro';
+  const base = process.env.NEXTAUTH_URL ?? 'https://coverstar.pro';
 
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/admin/'],
+        disallow: ['/api/', '/unauthorized', '/forbidden'],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${base}/sitemap.xml`,
+    host: base,
   };
 }

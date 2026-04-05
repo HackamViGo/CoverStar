@@ -2,41 +2,22 @@ import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { buildImagePrompt } from '@/lib/prompt-builder';
 import { MAGAZINES } from '@/lib/magazines';
+import { GoogleGenAI } from '@google/genai';
 
 const imageSchema = z.object({
   magazineId: z.string().min(1),
   gender: z.enum(['male', 'female']),
   userName: z.string().optional(),
   brief: z.any(),
-  imageBase64: z.string().min(100), // Basic size check
+  imageBase64: z
+    .string()
+    .min(1, 'Image is required')
+    .max(10 * 1024 * 1024, 'Image too large — max 10MB') 
+    .refine((s) => /^[A-Za-z0-9+/]+=*$/.test(s), 'Invalid base64 format'),
 });
 
-// ---------------------------------------------------------------------------
-// Google AI Compatibility Wrapper
-// ---------------------------------------------------------------------------
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const _genai = require('@google/genai') as any;
-
-const GoogleGenerativeAI =
-  _genai.GoogleGenerativeAI ||
-  (class {
-    private key: string;
-    constructor(apiKey: string) {
-      this.key = apiKey;
-    }
-    getGenerativeModel({ model }: { model: string }) {
-      return {
-        generateContent: async (options: any) => {
-          const { GoogleGenAI } = _genai;
-          const ai = new GoogleGenAI({ apiKey: this.key });
-          return await ai.models.generateContent({ model, ...options });
-        },
-      };
-    }
-  });
-
 export async function POST(req: Request): Promise<Response> {
-  // 1. Authorization Check (MUST BE FIRST)
+  // 1. Authorization Check
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
@@ -53,13 +34,18 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429, headers: { 'Content-Type': 'application/json' } });
   }
 
+  // 3. Payload Size Check (Pre-Parsing)
+  const contentLength = req.headers.get('content-length');
+  if (contentLength && parseInt(contentLength) > 11 * 1024 * 1024) {
+    return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { 'Content-Type': 'application/json' } });
+  }
+
   try {
-    // 3. JSON Parsing (Robust)
     let body;
     try {
       body = await req.json();
     } catch {
-      return new Response(JSON.stringify({ error: 'Bad Request', details: 'Invalid JSON' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // 4. Zod Validation
@@ -73,12 +59,11 @@ export async function POST(req: Request): Promise<Response> {
     if (!magazine) return new Response(JSON.stringify({ error: 'Magazine not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
     const prompt = buildImagePrompt(magazine, brief, gender, userName);
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
-
+    const genAI = new GoogleGenAI({ apiKey });
+    
     const encoder = new TextEncoder();
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 60000);
+    const timeoutId = setTimeout(() => abortController.abort(), 55000);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -87,30 +72,31 @@ export async function POST(req: Request): Promise<Response> {
             controller.enqueue(
               encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
             );
-          } catch {
-            /* ignore */
-          }
+          } catch { /* ignore */ }
         };
 
         try {
           sendEvent('status', { message: 'Rendering your cover...' });
 
-          // Mock progress updates
+          // Progress mock
           let progress = 0;
           const progressInterval = setInterval(() => {
             progress += 15;
             if (progress < 95) sendEvent('progress', { percent: progress });
           }, 1500);
 
-          const result = await model.generateContent({
-            contents: {
-              parts: [
-                { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
-                { text: prompt },
-              ],
-            },
-            config: { imageConfig: { aspectRatio: '3:4' } },
-            //@ts-ignore
+          // We use the models.generateContent from @google/genai
+          const result = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash-lite',
+            contents: [
+              {
+                parts: [
+                  { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
+                  { text: prompt },
+                ],
+              },
+            ],
+            // @ts-ignore
             signal: abortController.signal
           });
 
@@ -144,10 +130,11 @@ export async function POST(req: Request): Promise<Response> {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
+        'Connection': 'keep-alive',
       },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('API Error:', err);
+    return new Response(JSON.stringify({ error: err.message || 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
