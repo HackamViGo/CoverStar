@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/home/hackamvigo/distro-homes/antigravity-box/Projects/CoverStar/app/layout\":[\"static/media/e4af272ccee01ff0-s.p.woff2\",\"static/media/78d0dd042ac6d54d-s.p.woff2\",\"static/media/eaead17c7dbfcd5d-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
