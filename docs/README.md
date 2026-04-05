@@ -36,7 +36,7 @@ CoverStar is a high-fashion AI application that allows users to transform their 
 3. **Configure Environment Variables:**
    Create a `.env` file in the root directory and add the following variables based on `.env.example`:
    ```env
-   NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_API_KEY=your_gemini_api_key
    APP_URL=http://localhost:3000
    NEXTAUTH_SECRET=your_nextauth_secret
    NEXTAUTH_URL=http://localhost:3000
@@ -52,7 +52,7 @@ CoverStar is a high-fashion AI application that allows users to transform their 
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_GEMINI_API_KEY` | Public API key for Google Gemini AI. |
+| `GEMINI_API_KEY` | Public API key for Google Gemini AI. |
 | `APP_URL` | The base URL of the application. |
 | `NEXTAUTH_SECRET` | Secret key used by NextAuth.js for session encryption. |
 | `NEXTAUTH_URL` | The canonical URL of the application for NextAuth.js. |

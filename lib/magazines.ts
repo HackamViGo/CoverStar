@@ -6,6 +6,8 @@ export interface Magazine {
   category: "luxury" | "fitness" | "business" | "tech" | "lifestyle" | "street";
   
   // VISUAL IDENTITY
+  uiFont: string;        // CSS font-family string, e.g. "'Playfair Display', serif"
+  uiFontWeight: string;  // CSS font-weight, e.g. "700" or "900"
   primaryColor: string;
   accentColor: string;
   fontStyle: string;
@@ -55,6 +57,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "vogue",
     name: "Vogue",
+    uiFont: "'Playfair Display', serif",
+    uiFontWeight: "700",
     gender: "female",
     category: "luxury",
     primaryColor: "#000000",
@@ -90,6 +94,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "elle",
     name: "Elle",
+    uiFont: "'Bebas Neue', sans-serif",
+    uiFontWeight: "400",
     gender: "female",
     category: "luxury",
     primaryColor: "#000000",
@@ -125,6 +131,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "harpers-bazaar",
     name: "Harper's Bazaar",
+    uiFont: "'Libre Bodoni', serif",
+    uiFontWeight: "700",
     gender: "female",
     category: "luxury",
     primaryColor: "#000000",
@@ -160,6 +168,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "cosmopolitan",
     name: "Cosmopolitan",
+    uiFont: "'Dancing Script', cursive",
+    uiFontWeight: "700",
     gender: "female",
     category: "lifestyle",
     primaryColor: "#FF007F",
@@ -195,6 +205,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "glamour",
     name: "Glamour",
+    uiFont: "'Josefin Sans', sans-serif",
+    uiFontWeight: "700",
     gender: "female",
     category: "lifestyle",
     primaryColor: "#000000",
@@ -230,6 +242,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "vanity-fair",
     name: "Vanity Fair",
+    uiFont: "'Playfair Display', serif",
+    uiFontWeight: "400",
     gender: "female",
     category: "luxury",
     primaryColor: "#000000",
@@ -265,6 +279,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "allure",
     name: "Allure",
+    uiFont: "'Cormorant Garamond', serif",
+    uiFontWeight: "300",
     gender: "female",
     category: "lifestyle",
     primaryColor: "#000000",
@@ -300,6 +316,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "marie-claire",
     name: "Marie Claire",
+    uiFont: "'Cormorant Garamond', serif",
+    uiFontWeight: "600",
     gender: "female",
     category: "lifestyle",
     primaryColor: "#000000",
@@ -335,6 +353,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "people",
     name: "People",
+    uiFont: "'Oswald', sans-serif",
+    uiFontWeight: "700",
     gender: "female",
     category: "lifestyle",
     primaryColor: "#000000",
@@ -370,6 +390,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "grazia",
     name: "Grazia",
+    uiFont: "'Bebas Neue', sans-serif",
+    uiFontWeight: "400",
     gender: "female",
     category: "street",
     primaryColor: "#000000",
@@ -405,6 +427,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "gq",
     name: "GQ",
+    uiFont: "'Montserrat', sans-serif",
+    uiFontWeight: "900",
     gender: "male",
     category: "luxury",
     primaryColor: "#000000",
@@ -440,6 +464,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "esquire",
     name: "Esquire",
+    uiFont: "'Libre Baskerville', serif",
+    uiFontWeight: "700",
     gender: "male",
     category: "luxury",
     primaryColor: "#000000",
@@ -475,6 +501,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "mens-health",
     name: "Men's Health",
+    uiFont: "'Oswald', sans-serif",
+    uiFontWeight: "900",
     gender: "male",
     category: "fitness",
     primaryColor: "#B91C1C",
@@ -510,6 +538,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "forbes",
     name: "Forbes",
+    uiFont: "'UnifrakturMaguntia', cursive",
+    uiFontWeight: "400",
     gender: "unisex",
     category: "business",
     primaryColor: "#000000",
@@ -547,6 +577,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "rolling-stone",
     name: "Rolling Stone",
+    uiFont: "'Arvo', serif",
+    uiFontWeight: "700",
     gender: "unisex",
     category: "lifestyle",
     primaryColor: "#B91C1C",
@@ -584,6 +616,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "wired",
     name: "Wired",
+    uiFont: "'Black Han Sans', sans-serif",
+    uiFontWeight: "400",
     gender: "unisex",
     category: "tech",
     primaryColor: "#000000",
@@ -621,6 +655,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "maxim",
     name: "Maxim",
+    uiFont: "'Oswald', sans-serif",
+    uiFontWeight: "700",
     gender: "male",
     coverStarGender: "female",
     category: "lifestyle",
@@ -657,6 +693,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "popular-mechanics",
     name: "Popular Mechanics",
+    uiFont: "'Russo One', sans-serif",
+    uiFontWeight: "400",
     gender: "unisex",
     category: "tech",
     primaryColor: "#000000",
@@ -694,6 +732,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "sports-illustrated",
     name: "Sports Illustrated",
+    uiFont: "'Teko', sans-serif",
+    uiFontWeight: "700",
     gender: "unisex",
     category: "lifestyle",
     primaryColor: "#B91C1C",
@@ -731,6 +771,8 @@ export const MAGAZINES: Magazine[] = [
   {
     id: "time",
     name: "Time",
+    uiFont: "'Libre Baskerville', serif",
+    uiFontWeight: "700",
     gender: "unisex",
     category: "lifestyle",
     primaryColor: "#B91C1C",

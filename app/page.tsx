@@ -38,6 +38,8 @@ import Image from "next/image";
 import SettingsScreen from "@/components/SettingsScreen";
 import AdScreen from "@/components/AdScreen";
 import DustAnimation from "@/components/DustAnimation";
+import { resizeImage } from "@/lib/image-utils";
+import { MagazineTitle } from "@/components/MagazineTitle";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -55,6 +57,12 @@ export default function HomePage() {
   const [result, setResult] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("");
   
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load gallery from IndexedDB on mount
@@ -121,6 +129,56 @@ export default function HomePage() {
       setSelectedMagazine(randomMag);
       setCurrentStep(2);
       toast.success(`Randomly selected: ${randomMag.name}`);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      cameraInputRef.current?.click();
+    } else {
+      setIsCameraOpen(true);
+      setIsUploadModalOpen(false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          streamRef.current = stream;
+        }
+      } catch (err) {
+        console.error("Error accessing camera:", err);
+        toast.error("Could not access camera. Please check permissions.");
+        setIsCameraOpen(false);
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        // Mirror the image for selfie mode
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        setImage(dataUrl);
+        stopCamera();
+        setIsCameraOpen(false);
+        toast.success("Portrait captured successfully");
+      }
     }
   };
 
@@ -206,9 +264,19 @@ export default function HomePage() {
         console.log("[Phase 2] 📝 Full prompt:\n", prompt);
       }
 
-      // Extract base64 data from the user's uploaded image
-      const base64Data = image.split(",")[1];
-      const mimeType = image.split(";")[0].split(":")[1];
+      // Resize image to avoid "invalid image" errors with large payloads or extreme resolutions
+      // This also converts any format (PNG, WebP, etc.) to a standard JPEG that Gemini supports well
+      // 768px is a safe dimension that provides good quality while keeping the payload manageable
+      const resizedImage = await resizeImage(image, 768, 0.8);
+
+      // Extract base64 data from the resized image
+      const base64Data = resizedImage.split(",")[1];
+      const mimeType = "image/jpeg"; // resizeImage utility now exports as image/jpeg
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Phase 2] 🖼️ Image data length:", base64Data.length);
+        console.log("[Phase 2] 🖼️ MIME type:", mimeType);
+      }
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image",
@@ -509,9 +577,19 @@ export default function HomePage() {
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
                           <div className="absolute inset-0 flex flex-col items-center justify-end p-2 lg:p-4 text-center">
-                            <span className="text-sm lg:text-xl font-serif font-bold italic tracking-tight text-gold">
-                              {mag.name}
-                            </span>
+                            {mag.id === "time" ? (
+                              <span
+                                className="px-3 py-1 bg-red-600 text-white text-xl lg:text-2xl tracking-widest drop-shadow-lg"
+                                style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
+                              >
+                                {mag.name}
+                              </span>
+                            ) : (
+                              <MagazineTitle
+                                magazine={mag}
+                                className="text-xl lg:text-2xl tracking-wide drop-shadow-lg text-white"
+                              />
+                            )}
                             <span className="text-[6px] lg:text-[8px] uppercase tracking-widest text-gold/40 font-bold mt-0.5 lg:mt-1">
                               {mag.gender === 'female' ? 'Fashion & Style' : 'Lifestyle & Culture'}
                             </span>
@@ -556,12 +634,7 @@ export default function HomePage() {
                 {/* Upload Zone - Large on Mobile */}
                 <div className="w-full lg:flex-1 flex items-center justify-center min-h-[300px] lg:min-h-0">
                   <div
-                    onClick={() => {
-                      if (fileInputRef.current) {
-                        fileInputRef.current.removeAttribute("capture");
-                        fileInputRef.current.click();
-                      }
-                    }}
+                    onClick={() => setIsUploadModalOpen(true)}
                     className={`relative aspect-[3/4] w-full max-w-[280px] sm:max-w-[320px] lg:max-w-none lg:h-full lg:max-h-[60vh] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-all duration-700 group ${
                       image ? "border-gold shadow-[0_0_60px_rgba(212,175,55,0.2)]" : "border-gold/10 hover:border-gold/30 bg-gold/5"
                     }`}
@@ -592,45 +665,29 @@ export default function HomePage() {
                     )}
                     <input
                       type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageUpload}
+                      ref={galleryInputRef}
+                      onChange={(e) => {
+                        handleImageUpload(e);
+                        setIsUploadModalOpen(false);
+                      }}
                       accept="image/*"
+                      className="hidden"
+                    />
+                    <input
+                      type="file"
+                      ref={cameraInputRef}
+                      onChange={(e) => {
+                        handleImageUpload(e);
+                        setIsUploadModalOpen(false);
+                      }}
+                      accept="image/*"
+                      capture="user"
                       className="hidden"
                     />
                   </div>
                 </div>
 
                 <div className="w-full lg:w-[400px] flex flex-col space-y-3 lg:space-y-6 flex-shrink-0">
-                  {/* Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.setAttribute("capture", "user");
-                          fileInputRef.current.click();
-                        }
-                      }}
-                      className="h-10 lg:h-16 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold space-x-2 transition-all hover:scale-105"
-                    >
-                      <Camera className="w-4 h-4 lg:w-6 lg:h-6" />
-                      <span className="text-[8px] lg:text-[10px] uppercase tracking-widest font-bold">Take Photo</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.removeAttribute("capture");
-                          fileInputRef.current.click();
-                        }
-                      }}
-                      className="h-10 lg:h-16 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold space-x-2 transition-all hover:scale-105"
-                    >
-                      <Upload className="w-4 h-4 lg:w-6 lg:h-6" />
-                      <span className="text-[8px] lg:text-[10px] uppercase tracking-widest font-bold">Upload</span>
-                    </Button>
-                  </div>
-
                   {/* Guidelines */}
                   <div className="p-3 lg:p-6 bg-obsidian/50 border border-gold/10 rounded-xl lg:rounded-2xl space-y-2 lg:space-y-4">
                     <div className="flex items-center space-x-2 text-gold/60">
@@ -716,6 +773,121 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      {/* Upload Selection Modal */}
+      <AnimatePresence>
+        {isUploadModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsUploadModalOpen(false)}
+              className="absolute inset-0 bg-obsidian/90 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-obsidian border border-gold/20 rounded-3xl p-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] space-y-6"
+            >
+              <button 
+                onClick={() => setIsUploadModalOpen(false)}
+                className="absolute top-4 right-4 text-gold/40 hover:text-gold transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-serif font-bold italic text-gold-gradient">Choose Method</h3>
+                <p className="text-[10px] text-gold/40 uppercase tracking-widest font-bold">Select how you want to provide your portrait</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <Button
+                  variant="outline"
+                  onClick={handleTakePhoto}
+                  className="h-20 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold flex flex-col items-center justify-center space-y-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Camera className="w-8 h-8" />
+                  <span className="text-xs uppercase tracking-widest font-bold">Take Photo</span>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="h-20 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold flex flex-col items-center justify-center space-y-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Upload className="w-8 h-8" />
+                  <span className="text-xs uppercase tracking-widest font-bold">Upload from Gallery</span>
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                onClick={() => setIsUploadModalOpen(false)}
+                className="w-full text-gold/40 hover:text-gold text-[10px] uppercase tracking-widest font-bold"
+              >
+                Cancel
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Camera Modal */}
+      <AnimatePresence>
+        {isCameraOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-obsidian">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative w-full h-full flex flex-col items-center justify-center p-4"
+            >
+              <div className="relative w-full max-w-4xl aspect-[4/3] overflow-hidden rounded-3xl border border-gold/20 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+                <div className="absolute inset-0 border-[40px] border-obsidian/40 pointer-events-none" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-[80%] h-[80%] border border-gold/20 rounded-[20%] border-dashed" />
+                </div>
+              </div>
+              
+              <div className="mt-8 flex items-center space-x-12">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    stopCamera();
+                    setIsCameraOpen(false);
+                  }}
+                  className="w-16 h-16 rounded-full border border-gold/10 bg-gold/5 text-gold/40 hover:text-gold transition-all"
+                >
+                  <X className="w-8 h-8" />
+                </Button>
+                
+                <Button
+                  onClick={capturePhoto}
+                  className="w-24 h-24 rounded-full bg-gold text-obsidian hover:scale-110 active:scale-95 transition-all shadow-[0_0_30px_rgba(212,175,55,0.5)] flex items-center justify-center group"
+                >
+                  <div className="w-16 h-16 rounded-full border-4 border-obsidian/20 group-hover:border-obsidian/40 transition-colors" />
+                </Button>
+
+                <div className="w-16 h-16" /> {/* Spacer for symmetry */}
+              </div>
+              
+              <div className="absolute top-8 text-center">
+                <h3 className="text-2xl font-serif font-bold italic text-gold-gradient">Elite Portrait Studio</h3>
+                <p className="text-[10px] text-gold/40 uppercase tracking-widest font-bold mt-2">Position yourself within the frame</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { MAGAZINES } from "@/lib/magazines";
+import { MagazineTitle } from "@/components/MagazineTitle";
 
 export default function GalleryPage() {
   const { data: session, status } = useSession();
@@ -42,6 +44,48 @@ export default function GalleryPage() {
     link.href = imageUrl;
     link.download = `CoverStar-${magazineName}-${Date.now()}.png`;
     link.click();
+  };
+
+  const handleDownloadAll = async () => {
+    if (gallery.length === 0) return;
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    toast.info(`Starting download of ${gallery.length} covers...`);
+    
+    for (let i = 0; i < gallery.length; i++) {
+      const cover = gallery[i];
+      handleDownload(cover.imageUrl, cover.magazineName);
+      // Small delay to prevent browser from blocking multiple downloads
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    toast.success("All covers downloaded successfully");
+  };
+
+  const handleShare = async (imageUrl: string, magazineName: string) => {
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    const shareData = {
+      title: `My ${magazineName} Cover`,
+      text: `Check out my custom ${magazineName} magazine cover created with CoverStar AI!`,
+      url: imageUrl,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success("Shared successfully");
+      } else {
+        await navigator.clipboard.writeText(imageUrl);
+        toast.success("Link copied to clipboard");
+      }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        console.error("Error sharing:", error);
+        await navigator.clipboard.writeText(imageUrl);
+        toast.success("Link copied to clipboard");
+      }
+    }
   };
 
   const openFullscreen = (cover: any) => {
@@ -84,6 +128,19 @@ export default function GalleryPage() {
             Elite Collection
           </span>
         </div>
+
+        {gallery.length > 0 && (
+          <div className="flex-1 flex justify-end pr-2 lg:pr-6">
+            <Button
+              onClick={handleDownloadAll}
+              variant="luxury"
+              className="h-8 lg:h-12 px-4 lg:px-8 text-[9px] lg:text-xs uppercase tracking-widest font-bold shadow-lg hover:scale-105 active:scale-95 transition-all"
+            >
+              <Download className="w-3 h-3 lg:w-4 lg:h-4 mr-2" />
+              Download All
+            </Button>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 p-6 lg:p-8 overflow-y-auto lg:overflow-hidden min-h-0 custom-scrollbar max-w-[1440px] mx-auto w-full flex flex-col">
@@ -126,8 +183,40 @@ export default function GalleryPage() {
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-obsidian/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center space-y-4 lg:space-y-4 p-4 backdrop-blur-sm">
-                      <p className="text-xs lg:text-lg font-serif font-bold italic text-gold text-center">{cover.magazineName}</p>
+                      {(() => {
+                        const mag = MAGAZINES.find(m => m.name === cover.magazineName);
+                        if (!mag) return <p className="text-xs lg:text-lg font-serif font-bold italic text-gold text-center">{cover.magazineName}</p>;
+                        
+                        if (mag.id === "time") {
+                          return (
+                            <span
+                              className="px-2 py-0.5 bg-red-600 text-white text-xs lg:text-lg tracking-widest drop-shadow-lg"
+                              style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
+                            >
+                              {mag.name}
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <MagazineTitle 
+                            magazine={mag} 
+                            className="text-xs lg:text-lg text-gold text-center" 
+                          />
+                        );
+                      })()}
                       <div className="flex space-x-3 lg:space-x-3">
+                        <Button 
+                          size="icon" 
+                          variant="secondary" 
+                          className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gold text-obsidian hover:bg-gold-light shadow-lg transition-transform hover:scale-110"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(cover.imageUrl, cover.magazineName);
+                          }}
+                        >
+                          <Share2 className="w-5 h-5 lg:w-6 lg:h-6" />
+                        </Button>
                         <Button 
                           size="icon" 
                           variant="secondary" 

@@ -8,6 +8,8 @@ import { Download, Share2, ChevronLeft, Sparkles, ShieldCheck } from "lucide-rea
 import Image from "next/image";
 import { toast } from "sonner";
 import { motion } from "motion/react";
+import { MAGAZINES } from "@/lib/magazines";
+import { MagazineTitle } from "@/components/MagazineTitle";
 
 const headlines = [
   {
@@ -93,9 +95,9 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-obsidian text-white selection:bg-gold/30 overflow-hidden px-4 lg:px-0 pb-[env(safe-area-inset-bottom,12px)] pt-[env(safe-area-inset-top,0px)]">
+    <div className="h-[100dvh] flex flex-col bg-obsidian text-white selection:bg-gold/30 overflow-hidden pt-[env(safe-area-inset-top,0px)]">
       {/* Header */}
-      <header className="flex-shrink-0 py-2 lg:py-6 flex items-center max-w-[1440px] mx-auto w-full z-10 h-auto lg:h-[80px]">
+      <header className="flex-shrink-0 py-2 lg:py-6 flex items-center max-w-[1440px] mx-auto w-full z-10 px-4 lg:px-0 h-auto lg:h-[80px]">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -116,26 +118,50 @@ export default function ResultPage() {
           <h1 className="text-base md:text-2xl lg:text-3xl font-serif font-bold tracking-tighter italic text-gold-gradient leading-none group-hover:scale-105 transition-transform duration-500">
             Your Masterpiece
           </h1>
-          <span className="text-[6px] lg:text-[10px] uppercase tracking-[0.4em] text-gold/40 font-bold mt-0.5 lg:mt-2">
-            Elite Edition • {cover.magazineName}
-          </span>
+          <div className="flex items-center space-x-1 lg:space-x-2 mt-0.5 lg:mt-2">
+            <span className="text-[6px] lg:text-[10px] uppercase tracking-[0.4em] text-gold/40 font-bold">
+              Elite Edition •
+            </span>
+            {(() => {
+              const mag = MAGAZINES.find(m => m.name === cover.magazineName);
+              if (!mag) return <span className="text-[6px] lg:text-[10px] uppercase tracking-[0.4em] text-gold/40 font-bold">{cover.magazineName}</span>;
+              
+              if (mag.id === "time") {
+                return (
+                  <span
+                    className="px-1.5 py-0.5 bg-red-600 text-white text-[6px] lg:text-[10px] tracking-widest"
+                    style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
+                  >
+                    {mag.name}
+                  </span>
+                );
+              }
+              
+              return (
+                <MagazineTitle 
+                  magazine={mag} 
+                  className="text-[6px] lg:text-[10px] uppercase tracking-[0.4em] text-gold/40 font-bold" 
+                />
+              );
+            })()}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row items-center lg:justify-center gap-2 lg:gap-12 xl:gap-20 p-0 lg:p-8 max-w-[1440px] mx-auto w-full min-h-0">
+      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-2 lg:gap-12 xl:gap-20 p-0 lg:p-8 max-w-[1440px] mx-auto w-full min-h-0 overflow-hidden">
         {/* Mobile Headline Section */}
-        <div className="lg:hidden text-center flex-shrink-0 px-4">
+        <div className="lg:hidden text-center flex-shrink-0 px-4 py-1">
           <h2 className="result-headline whitespace-nowrap overflow-hidden text-ellipsis">{headline.title}</h2>
           <p className="result-subtitle">{headline.subtitle}</p>
         </div>
 
         {/* Left Column: Image */}
-        <div className="flex-1 w-full flex justify-center items-center min-h-0 px-2 lg:px-0 h-full">
+        <div className="flex-1 lg:flex-1 w-full flex justify-center items-center min-h-0 px-4 lg:px-0">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative aspect-[2/3] w-full max-w-[85vw] sm:max-w-[70vw] lg:max-w-[700px] xl:max-w-[800px] lg:h-[calc(100vh-160px)] lg:w-auto rounded-xl lg:rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(212,175,55,0.15)] border border-gold/20 group
+            className="relative h-full w-full max-w-[90vw] lg:aspect-[2/3] lg:max-w-[700px] xl:max-w-[800px] lg:h-[calc(100vh-160px)] lg:w-auto rounded-xl lg:rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(212,175,55,0.15)] border border-gold/20 group
                        transition-all duration-700 hover:shadow-[0_0_100px_rgba(212,175,55,0.3)] hover:border-gold/40"
           >
             <Image
@@ -143,7 +169,7 @@ export default function ResultPage() {
               alt="Generated Cover"
               fill
               priority
-              className="object-contain lg:object-cover transition-transform duration-1000 group-hover:scale-110"
+              className="object-contain transition-transform duration-1000 group-hover:scale-110"
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-obsidian/60 via-transparent to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -157,7 +183,7 @@ export default function ResultPage() {
         </div>
 
         {/* Right Column: Actions */}
-        <div className="flex-shrink-0 w-full lg:w-[40%] xl:w-[35%] flex flex-col space-y-4 lg:space-y-8 p-4 lg:p-0 justify-center h-full">
+        <div className="flex-shrink-0 w-full lg:w-[40%] xl:w-[35%] flex flex-col space-y-3 lg:space-y-8 p-4 lg:p-0 justify-center lg:h-full pb-[calc(env(safe-area-inset-bottom,0px)+12px)] lg:pb-0">
           <div className="hidden lg:block space-y-4">
             <div className="space-y-2">
               <h2 className="result-headline">

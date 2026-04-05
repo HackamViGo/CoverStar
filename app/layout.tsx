@@ -37,6 +37,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Libre+Bodoni:wght@400;700&family=Dancing+Script:wght@700&family=Josefin+Sans:wght@700&family=Cormorant+Garamond:wght@300;600&family=Oswald:wght@700;900&family=Montserrat:wght@900&family=UnifrakturMaguntia&family=Libre+Baskerville:wght@700&family=Arvo:wght@700&family=Black+Han+Sans&family=Russo+One&family=Teko:wght@700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className={`${inter.variable} ${playfair.variable} font-sans bg-[#050505] text-[#F5F5F5] min-h-screen selection:bg-[#D4AF37]/30`}>
         <Providers>
           {children}

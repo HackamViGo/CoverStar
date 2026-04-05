@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { MAGAZINES } from "@/lib/magazines";
+import { MagazineTitle } from "@/components/MagazineTitle";
 
 interface DustAnimationProps {
   title: string;
@@ -182,9 +184,32 @@ export default function DustAnimation({ title, imageUrl, onComplete }: DustAnima
             transition={{ duration: 1.2, ease: "easeOut" }}
             className="relative z-20 text-center"
           >
-            <h2 className="text-7xl font-serif font-bold italic tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase">
-              {title}
-            </h2>
+            {(() => {
+              const mag = MAGAZINES.find(m => m.name === title);
+              if (!mag) return (
+                <h2 className="text-7xl font-serif font-bold italic tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase">
+                  {title}
+                </h2>
+              );
+              
+              if (mag.id === "time") {
+                return (
+                  <span
+                    className="px-8 py-2 bg-red-600 text-white text-7xl tracking-widest drop-shadow-[0_0_40px_rgba(212,175,55,0.4)]"
+                    style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
+                  >
+                    {mag.name}
+                  </span>
+                );
+              }
+              
+              return (
+                <MagazineTitle 
+                  magazine={mag} 
+                  className="text-7xl tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase" 
+                />
+              );
+            })()}
             <p className="text-gold/40 text-xs uppercase tracking-[0.5em] mt-4 font-bold">
               Elite Publication
             </p>
