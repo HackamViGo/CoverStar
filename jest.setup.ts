@@ -7,6 +7,39 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 global.ReadableStream = ReadableStream;
 
+// ============================================================
+// Env variables
+// ============================================================
+process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? 'development_secret_for_tests_only';
+process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+process.env.GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY ?? 'development_key_for_tests';
+
+// ============================================================
+// Потискане на очаквани console.error съобщения
+// ============================================================
+const originalError = console.error;
+
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation((...args) => {
+    const message = args[0]?.toString() ?? '';
+    const expectedErrors = [
+      'Error reading users file:',
+      'Warning: ReactDOM.render',
+      'Warning: An update to',
+      'ENOENT: no such file or directory'
+    ];
+    const isExpected = expectedErrors.some(e => message.includes(e));
+    if (!isExpected) {
+      originalError(...args);
+    }
+  });
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
+
+
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: () => ({

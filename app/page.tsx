@@ -263,35 +263,48 @@ export default function HomePage() {
       const decoder = new TextDecoder();
       let imageUrl = "";
 
+      let buffer = "";
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
         
-        let currentEvent = '';
-        
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.substring(7).trim();
-          } else if (line.startsWith('data: ')) {
-            const dataStr = line.substring(6).trim();
-            if (!dataStr) continue;
-            
-            try {
-              const data = JSON.parse(dataStr);
-              if (currentEvent === 'progress') {
-                // We expect status updates from the stream
-              } else if (currentEvent === 'success') {
-                imageUrl = data.imageUrl;
-              } else if (currentEvent === 'error') {
-                throw new Error(data.message || "Failed to generate image");
-              }
-            } catch (e) {
-              if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
-                if (currentEvent === 'error') throw e;
-              }
+        let eventEndIndex;
+        while ((eventEndIndex = buffer.indexOf('\n\n')) !== -1) {
+          const eventBlock = buffer.slice(0, eventEndIndex);
+          buffer = buffer.slice(eventEndIndex + 2);
+          
+          const lines = eventBlock.split('\n');
+          let currentEvent = 'message';
+          let dataStr = '';
+          
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.substring(7).trim();
+            } else if (line.startsWith('data: ')) {
+              dataStr = line.substring(6).trim();
+            }
+          }
+          
+          if (!dataStr) continue;
+          
+          try {
+            const data = JSON.parse(dataStr);
+            if (currentEvent === 'progress') {
+              // We expect status updates from the stream
+            } else if (currentEvent === 'success') {
+              imageUrl = data.imageUrl;
+            } else if (currentEvent === 'error') {
+              throw new Error(data.message || "Failed to generate image");
+            }
+          } catch (e) {
+            if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
+              if (currentEvent === 'error') throw e;
+            }
+            if (currentEvent === 'error' && !(e instanceof Error)) {
+               throw new Error(dataStr);
             }
           }
         }

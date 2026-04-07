@@ -51,11 +51,15 @@ export interface Magazine {
   // FEW-SHOT REFERENCES
   referenceHeadlines: string[];
   referenceSublines: string[];
+  strictRule?: string;
+  forbiddenElements?: string;
 }
 
 export const MAGAZINES: Magazine[] = [
   {
     id: "vogue",
+    strictRule: "НИКАКЪВ текст над лицето на модела",
+    forbiddenElements: "Крещящи цветове, покриване на лицето",
     name: "Vogue",
     uiFont: "'Playfair Display', serif",
     uiFontWeight: "700",
@@ -130,6 +134,8 @@ export const MAGAZINES: Magazine[] = [
   },
   {
     id: "harpers-bazaar",
+    strictRule: "Максимум 2-3 подзаглавия",
+    forbiddenElements: "Претрупване с текст",
     name: "Harper's Bazaar",
     uiFont: "'Libre Bodoni', serif",
     uiFontWeight: "700",
@@ -167,6 +173,7 @@ export const MAGAZINES: Magazine[] = [
   },
   {
     id: "cosmopolitan",
+    forbiddenElements: "Тъмни/мрачни тонове, срамежливи пози",
     name: "Cosmopolitan",
     uiFont: "'Dancing Script', cursive",
     uiFontWeight: "700",
@@ -426,6 +433,7 @@ export const MAGAZINES: Magazine[] = [
   },
   {
     id: "gq",
+    forbiddenElements: "Меко/романтично осветление",
     name: "GQ",
     uiFont: "'Montserrat', sans-serif",
     uiFontWeight: "900",
@@ -615,6 +623,7 @@ export const MAGAZINES: Magazine[] = [
   },
   {
     id: "wired",
+    forbiddenElements: "Класически ретро стил, природни фонове",
     name: "Wired",
     uiFont: "'Black Han Sans', sans-serif",
     uiFontWeight: "400",
@@ -770,6 +779,8 @@ export const MAGAZINES: Magazine[] = [
   },
   {
     id: "time",
+    strictRule: "The entire cover MUST be framed by a thick RED BORDER (#B91C1C) like a window.",
+    forbiddenElements: "Модни ексцентрични дрехи",
     name: "Time",
     uiFont: "'Libre Baskerville', serif",
     uiFontWeight: "700",

@@ -6,7 +6,7 @@ import { MAGAZINES } from '@/lib/magazines';
 const briefSchema = z.object({
   magazineId: z.string().min(1),
   gender: z.enum(['male', 'female', 'unisex']).optional().default('female'),
-  topic: z.string().min(3).max(500),
+  topic: z.string().min(3).max(500).optional().default("Fashion Cover"),
 });
 
 export async function POST(req: Request): Promise<Response> {

@@ -28,11 +28,32 @@ export default function SettingsScreen() {
   }, [apiKey, setCurrentStep, hasAutoAdvanced]);
 
   const handleSave = () => {
-    if (!keyInput.trim()) {
+    const cleanedKey = keyInput.trim();
+    
+    if (!cleanedKey) {
       toast.error("Please enter a valid API key.");
       return;
     }
-    setApiKey(keyInput.trim());
+
+    // Правило 1: Трябва да започва с 'AIz'
+    if (!cleanedKey.startsWith("AIz")) {
+      toast.error("Invalid key format. Gemini API keys start with 'AIz'.");
+      return;
+    }
+
+    // Правило 2: Трябва да е точно 39 символа (стандартът на Google)
+    if (cleanedKey.length !== 39) {
+      toast.error(`Invalid key length. Expected 39 characters, got ${cleanedKey.length}.`);
+      return;
+    }
+
+    // Правило 3: Защита от счупени символи и кирилица (Headers validation)
+    if (!/^[\x20-\x7E]+$/.test(cleanedKey)) {
+      toast.error("Your key contains hidden or invalid characters. Please re-copy it.");
+      return;
+    }
+
+    setApiKey(cleanedKey);
     if (profile) {
       setProfile({ ...profile, gender });
     }

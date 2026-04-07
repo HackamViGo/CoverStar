@@ -87,7 +87,7 @@ export async function POST(req: Request): Promise<Response> {
 
           // We use the models.generateContent from @google/genai
           const result = await genAI.models.generateContent({
-            model: 'gemini-2.0-flash-lite',
+            model: 'gemini-2.5-flash-image',
             contents: [
               {
                 parts: [
