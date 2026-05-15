@@ -40,13 +40,28 @@ import AdScreen from "@/components/AdScreen";
 import DustAnimation from "@/components/DustAnimation";
 import { resizeImage } from "@/lib/image-utils";
 import { MagazineTitle } from "@/components/MagazineTitle";
+import { LOCAL_LEGENDS, Variation } from "@/lib/variations";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { profile, gallery, setGallery, addCover, apiKey, setApiKey, currentStep, setCurrentStep, clearProfile } = useAppStore();
+  const { 
+    profile, 
+    gallery, 
+    setGallery, 
+    addCover, 
+    apiKey, 
+    setApiKey, 
+    currentStep, 
+    setCurrentStep, 
+    clearProfile,
+    draft,
+    setDraft
+  } = useAppStore();
   
   const [selectedMagazine, setSelectedMagazine] = useState<Magazine | null>(null);
+  const [selectionMode, setSelectionMode] = useState<'classic' | 'local-legends' | null>(null);
+  const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
   const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const hasInitializedRef = useRef(false);
@@ -93,6 +108,40 @@ export default function HomePage() {
     };
     saveGallery();
   }, [gallery]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+    
+    // Load draft if available
+    if (draft && !image && !selectedMagazine && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      if (draft.image) setImage(draft.image);
+      if (draft.selectedMagazineId) {
+        const mag = MAGAZINES.find(m => m.id === draft.selectedMagazineId);
+        if (mag) setSelectedMagazine(mag);
+      }
+      if (draft.selectedVariationId) {
+        const variation = LOCAL_LEGENDS.find(v => v.id === draft.selectedVariationId);
+        if (variation) setSelectedVariation(variation);
+      }
+      setGenderFilter(draft.genderFilter);
+      setCurrentStep(draft.currentStep);
+      toast.info("Draft loaded from your last session");
+    }
+  }, [status, router, draft, image, selectedMagazine, setCurrentStep]);
+
+  const handleSaveDraft = () => {
+    setDraft({
+      selectedMagazineId: selectedMagazine?.id || null,
+      selectedVariationId: selectedVariation?.id || null,
+      image,
+      genderFilter,
+      currentStep
+    });
+    toast.success("Progress saved as draft");
+  };
 
   const filteredMagazines = MAGAZINES.filter(
     (m) => (genderFilter === "all" || m.gender === genderFilter || m.gender === "unisex") &&
@@ -197,7 +246,7 @@ export default function HomePage() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (qualitySettings?: { resolution?: string; aspectRatio?: string }) => {
     if (!image || !selectedMagazine || !apiKey) return;
 
     setGenerating(true);
@@ -208,99 +257,61 @@ export default function HomePage() {
       const ai = new GoogleGenAI({ apiKey });
       const gender = (profile?.gender as "male" | "female") || "female";
 
-      // Determine the effective cover star gender.
-      // For unisex magazines, the cover star gender matches the user's profile gender.
-      // For gendered magazines, use the magazine's defined gender.
-      // Special case: Maxim's cover star is always female regardless of user gender.
       let coverStarGender: "male" | "female" = gender;
       if (selectedMagazine.gender !== "unisex") {
-        // For strongly gendered magazines like Vogue (female) or Men's Health (male),
-        // the cover star gender is determined by who would realistically be on the cover.
-        // Since the user already filtered magazines by their own gender in the UI,
-        // coverStarGender = gender is correct.
         coverStarGender = gender;
       }
-      // Maxim override: cover star is almost always female
       if (selectedMagazine.id === "maxim" && selectedMagazine.coverStarGender) {
         coverStarGender = selectedMagazine.coverStarGender as "male" | "female";
       }
 
-      // ============================================================
-      // PHASE 1: Creative Director (gemini-2.5-flash-lite — ~0.5s)
-      // ============================================================
       let brief: CreativeBrief;
 
       try {
         brief = await generateCreativeBrief(apiKey, selectedMagazine, coverStarGender);
-        
-        if (process.env.NODE_ENV === "development") {
-          console.log("[Phase 1] ✅ Creative brief generated:", JSON.stringify(brief, null, 2));
-        }
       } catch (phase1Error: unknown) {
-        // DEV-ONLY FALLBACK: use enhanced static pools from magazine DNA
         if (process.env.NODE_ENV === "development") {
-          console.warn("[Phase 1] ❌ Failed, using fallback:", phase1Error);
           brief = generateFallbackBrief(selectedMagazine);
-          console.log("[Phase 1 Fallback] 🔄 Brief:", JSON.stringify(brief, null, 2));
         } else {
-          // PRODUCTION: propagate the error — user sees a toast
           const message = phase1Error instanceof Error ? phase1Error.message : "Creative brief generation failed";
           throw new Error(message);
         }
       }
 
-      // ============================================================
-      // PHASE 2: Image Synthesis (gemini-2.5-flash-image — ~10-15s)
-      // ============================================================
       const prompt = buildImagePrompt(
         selectedMagazine,
         brief,
         coverStarGender,
-        profile?.name
+        profile?.name,
+        selectedVariation || undefined,
+        qualitySettings
       );
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("[Phase 2] 🎨 Prompt length:", prompt.length, "chars");
-        console.log("[Phase 2] 📝 Full prompt:\n", prompt);
-      }
-
-      // Resize image to avoid "invalid image" errors with large payloads or extreme resolutions
-      // This also converts any format (PNG, WebP, etc.) to a standard JPEG that Gemini supports well
-      // 768px is a safe dimension that provides good quality while keeping the payload manageable
-      const resizedImage = await resizeImage(image, 768, 0.8);
-
-      // Extract base64 data from the resized image
+      const resizedImage = await resizeImage(image, qualitySettings?.resolution === "Ultra" ? 1024 : 768, 0.8);
       const base64Data = resizedImage.split(",")[1];
-      const mimeType = "image/jpeg"; // resizeImage utility now exports as image/jpeg
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[Phase 2] 🖼️ Image data length:", base64Data.length);
-        console.log("[Phase 2] 🖼️ MIME type:", mimeType);
-      }
+      const mimeType = "image/jpeg";
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
+        model: "gemini-3.1-flash-image-preview",
         contents: {
           parts: [
+            { text: prompt },
             {
               inlineData: {
                 data: base64Data,
                 mimeType: mimeType,
               },
             },
-            { text: prompt },
           ],
         },
         config: {
           imageConfig: {
-            aspectRatio: "3:4",
+            aspectRatio: qualitySettings?.aspectRatio || "3:4",
+            imageSize: qualitySettings?.resolution === "Ultra" ? "4K" : qualitySettings?.resolution === "High" ? "2K" : "1K",
           },
         },
       });
 
-      // ============================================================
-      // RESPONSE PARSING
-      // ============================================================
       let imageUrl = "";
       let responseText = "";
 
@@ -316,46 +327,40 @@ export default function HomePage() {
         }
       }
 
-      // ============================================================
-      // ERROR HANDLING
-      // ============================================================
       if (!imageUrl) {
         const candidate = response.candidates?.[0];
         const finishReason = candidate?.finishReason;
+        const safetyRatings = candidate?.safetyRatings;
 
         if (finishReason === "SAFETY") {
-          throw new Error(
-            "The image was blocked by safety filters. Please try a different photo or magazine style."
-          );
+          const blockedCategories = safetyRatings
+            ?.filter(r => r.blocked)
+            ?.map(r => r.category)
+            ?.join(", ");
+          throw new Error(`The image was blocked by safety filters${blockedCategories ? `: ${blockedCategories}` : ""}. Please try a different photo.`);
         }
-        if (finishReason === "RECITATION") {
-          throw new Error(
-            "The image was blocked due to copyright/recitation filters. Try a different magazine."
-          );
+        
+        if (finishReason) {
+          throw new Error(responseText || `Model failed to generate image. Reason: ${finishReason}`);
         }
-        if (finishReason === "OTHER") {
-          throw new Error(
-            "Generation failed for an unknown reason. This can happen with complex prompts. Please try again."
-          );
-        }
-
-        throw new Error(
-          responseText ||
-            `Failed to generate image (Status: ${finishReason || "No Response"}). Please try again or check your API key.`
-        );
+        
+        throw new Error(responseText || "The model returned an empty response. This can happen due to high traffic or complex prompts. Please try again.");
       }
 
-      // ============================================================
-      // SUCCESS: Save cover and navigate
-      // ============================================================
       const cover = {
         id: Date.now().toString(),
         imageUrl: imageUrl,
-        magazineName: selectedMagazine.name,
+        originalImageUrl: image,
+        magazineName: selectedVariation?.title || selectedMagazine.name,
+        magazineId: selectedMagazine.id,
+        variationId: selectedVariation?.id || null,
+        gender: coverStarGender,
+        brief: brief,
         createdAt: new Date().toISOString(),
       };
 
       addCover(cover);
+      setDraft(null); // Clear draft on success
       router.push(`/result/${cover.id}`);
 
     } catch (error: unknown) {
@@ -405,7 +410,7 @@ export default function HomePage() {
         {showAd && <AdScreen onComplete={handleAdComplete} isReady={!!result} />}
         {showAnimation && (
           <DustAnimation 
-            title={selectedMagazine?.name || "CoverStar"} 
+            title={selectedVariation?.title || selectedMagazine?.name || "CoverStar"} 
             imageUrl={result || ""} 
             onComplete={handleAnimationComplete} 
           />
@@ -413,13 +418,15 @@ export default function HomePage() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="flex-shrink-0 p-3 lg:p-4 flex justify-between items-center border-b border-gold/10 bg-obsidian/80 backdrop-blur-xl z-20 w-full h-auto lg:h-[80px]">
+      <header className="flex-shrink-0 p-2 lg:p-4 flex justify-between items-center border-b border-gold/10 bg-obsidian/80 backdrop-blur-xl z-20 w-full h-auto lg:h-[80px]">
         <div 
-          className="flex flex-col cursor-pointer group"
+          className="flex flex-col cursor-pointer group pl-1 lg:pl-0"
           onClick={() => {
             if (navigator.vibrate) navigator.vibrate(50);
             setCurrentStep(1);
+            setSelectionMode(null);
             setSelectedMagazine(null);
+            setSelectedVariation(null);
             setImage(null);
             setResult(null);
           }}
@@ -475,140 +482,289 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Step 1: Magazine Selector */}
+          {/* Step 1: Magazine / Category Selector */}
           {currentStep === 1 && (
             <motion.div
-              key="magazines"
+              key="selection"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               className="flex-1 flex flex-col min-h-0 p-4 space-y-3 lg:space-y-6"
             >
-              <div className="text-center space-y-0.5 lg:space-y-1 flex-shrink-0">
-                <h2 className="text-xl lg:text-4xl font-serif font-bold tracking-tighter italic text-gold-gradient">
-                  Select Your Edition
-                </h2>
-                <p className="text-gold/40 text-[9px] lg:text-[10px] uppercase tracking-[0.2em] lg:tracking-[0.3em] font-bold whitespace-nowrap overflow-hidden text-ellipsis">
-                  CHOOSE A TEMPLATE FOR YOUR MASTERPIECE
-                </p>
-              </div>
-
-              <div className="flex-1 flex flex-col min-h-0 space-y-3 lg:space-y-4">
-                {/* Filters and Search on Single Row */}
-                <div className="flex items-center justify-center space-x-2 flex-shrink-0">
-                  <div className="flex bg-gold/5 rounded-xl p-0.5 lg:p-1 border border-gold/10 flex-1 lg:max-w-[400px]">
-                    <button
-                      onClick={() => setGenderFilter("all")}
-                      className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
-                        genderFilter === "all" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setGenderFilter("female")}
-                      className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
-                        genderFilter === "female" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
-                      }`}
-                    >
-                      Women
-                    </button>
-                    <button
-                      onClick={() => setGenderFilter("male")}
-                      className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
-                        genderFilter === "male" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
-                      }`}
-                    >
-                      Men
-                    </button>
+              {/* Category Selection View */}
+              {!selectionMode ? (
+                <div className="flex-1 flex flex-col space-y-6 lg:space-y-12 items-center justify-center max-w-5xl mx-auto w-full">
+                  <div className="text-center space-y-2">
+                    <h2 className="text-3xl lg:text-6xl font-serif font-bold tracking-tighter italic text-gold-gradient">
+                      Choose Your Path
+                    </h2>
+                    <p className="text-gold/40 text-xs lg:text-sm uppercase tracking-[0.3em] font-bold">
+                      SELECT A COLLECTION TO BEGIN
+                    </p>
                   </div>
-                  <div className="relative flex items-center space-x-1.5 lg:space-x-2 flex-shrink-0">
-                    <div className="relative w-20 lg:w-48">
-                      <Input
-                        type="text"
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-obsidian/50 border-gold/10 focus:border-gold/30 h-8 lg:h-11 text-[9px] lg:text-sm italic font-serif px-2"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleRandomize}
-                      className="h-8 w-8 lg:h-11 lg:w-11 p-0 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold transition-all hover:scale-105"
-                      title="Randomize Selection"
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-10 w-full px-2 lg:px-0">
+                    {/* Classic Card */}
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -10 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectionMode('classic')}
+                      className="relative aspect-[3/4] lg:aspect-[4/5] rounded-xl lg:rounded-2xl border border-gold/20 overflow-hidden group transition-all duration-500 hover:border-gold/50 hover:shadow-[0_0_50px_rgba(212,175,55,0.15)]"
                     >
-                      <Shuffle className="w-3.5 h-3.5 lg:w-4 h-4" />
-                    </Button>
+                      <Image
+                        src="https://picsum.photos/seed/classic-magazine/800/1000"
+                        alt="Classic Collection"
+                        fill
+                        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/20 to-transparent" />
+                      <div className="absolute inset-0 p-3 lg:p-10 flex flex-col justify-end items-center text-center">
+                        <h3 className="text-lg lg:text-4xl font-serif font-bold italic text-white mb-1 lg:mb-2 leading-tight">Classic</h3>
+                        <p className="text-gold/60 text-[7px] lg:text-xs uppercase tracking-widest font-bold">
+                          Iconic Titles
+                        </p>
+                      </div>
+                    </motion.button>
+
+                    {/* Local Legends Card */}
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -10 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectionMode('local-legends')}
+                      className="relative aspect-[3/4] lg:aspect-[4/5] rounded-xl lg:rounded-2xl border border-gold/20 overflow-hidden group transition-all duration-500 hover:border-gold/50 hover:shadow-[0_0_50px_rgba(212,175,55,0.15)]"
+                    >
+                      <Image
+                        src="https://picsum.photos/seed/local-legends/800/1000"
+                        alt="Local Legends"
+                        fill
+                        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/20 to-transparent" />
+                      <div className="absolute inset-0 p-3 lg:p-10 flex flex-col justify-end items-center text-center">
+                        <h3 className="text-lg lg:text-4xl font-serif font-bold italic text-white mb-1 lg:mb-2 leading-tight">Local Legends</h3>
+                        <p className="text-gold/60 text-[7px] lg:text-xs uppercase tracking-widest font-bold">
+                          Cultural Icons
+                        </p>
+                      </div>
+                    </motion.button>
+
+                    {/* Captivated Card (Locked) */}
+                    <div className="relative aspect-[3/4] lg:aspect-[4/5] col-span-2 md:col-span-1 rounded-xl lg:rounded-2xl border border-white/5 overflow-hidden group grayscale opacity-50 cursor-not-allowed">
+                      <Image
+                        src="https://picsum.photos/seed/captivated/800/1000"
+                        alt="Captivated Collection"
+                        fill
+                        className="object-cover opacity-30"
+                      />
+                      <div className="absolute inset-0 bg-obsidian/60 backdrop-blur-[2px]" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                        <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-white/10 flex items-center justify-center mb-2 lg:mb-4">
+                          <X className="w-4 h-4 lg:w-6 lg:h-6 text-white/40" />
+                        </div>
+                        <h3 className="text-lg lg:text-4xl font-serif font-bold italic text-white/40 mb-1 lg:mb-2">Captivated</h3>
+                        <p className="text-white/20 text-[7px] lg:text-xs uppercase tracking-widest font-bold">
+                          Coming Soon
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                
-                {/* Scrollable Grid Area */}
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1 lg:pr-4 custom-scrollbar no-scrollbar">
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-6 pb-4">
-                    {filteredMagazines.length > 0 ? (
-                      filteredMagazines.map((mag) => (
-                        <motion.button
-                          key={mag.id}
-                          whileHover={{ scale: 1.05, y: -4 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => {
-                            setSelectedMagazine(mag);
-                            setCurrentStep(2);
-                          }}
-                          className={`relative group aspect-[3/4.2] lg:aspect-[3/4] rounded-xl border overflow-hidden transition-all duration-500 ${
-                            selectedMagazine?.id === mag.id
-                              ? "border-gold shadow-[0_0_40px_rgba(212,175,55,0.3)]"
-                              : "border-gold/10 hover:border-gold/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.2)]"
+              ) : selectionMode === 'classic' ? (
+                <>
+                  <div className="flex items-center justify-between flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setSelectionMode(null)}
+                      className="text-gold/60 hover:text-gold hover:bg-gold/10"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-2" />
+                      Back to Categories
+                    </Button>
+                    <div className="text-center space-y-0.5 lg:space-y-1">
+                      <h2 className="text-xl lg:text-4xl font-serif font-bold tracking-tighter italic text-gold-gradient">
+                        Classic Editions
+                      </h2>
+                    </div>
+                    <div className="w-24" /> {/* Spacer */}
+                  </div>
+
+                  <div className="flex-1 flex flex-col min-h-0 space-y-3 lg:space-y-4">
+                    {/* Filters and Search on Single Row */}
+                    <div className="flex items-center justify-center space-x-2 flex-shrink-0">
+                      <div className="flex bg-gold/5 rounded-xl p-0.5 lg:p-1 border border-gold/10 flex-1 lg:max-w-[400px]">
+                        <button
+                          onClick={() => setGenderFilter("all")}
+                          className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
+                            genderFilter === "all" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
                           }`}
                         >
+                          All
+                        </button>
+                        <button
+                          onClick={() => setGenderFilter("female")}
+                          className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
+                            genderFilter === "female" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
+                          }`}
+                        >
+                          Women
+                        </button>
+                        <button
+                          onClick={() => setGenderFilter("male")}
+                          className={`flex-1 py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${
+                            genderFilter === "male" ? "bg-gold text-obsidian shadow-lg" : "text-gold/40 hover:text-gold/60"
+                          }`}
+                        >
+                          Men
+                        </button>
+                      </div>
+                      <div className="relative flex items-center space-x-1.5 lg:space-x-2 flex-shrink-0">
+                        <div className="relative w-24 lg:w-48">
+                          <Input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-obsidian/50 border-gold/10 focus:border-gold/30 h-8 lg:h-11 text-[9px] lg:text-sm italic font-serif px-2"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={handleRandomize}
+                          className="h-8 w-8 lg:h-11 lg:w-11 p-0 border-gold/10 hover:border-gold/30 bg-gold/5 text-gold/60 hover:text-gold transition-all hover:scale-105"
+                          title="Randomize Selection"
+                        >
+                          <Shuffle className="w-3.5 h-3.5 lg:w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Scrollable Grid Area */}
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1 lg:pr-4 custom-scrollbar no-scrollbar">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-6 pb-4">
+                        {filteredMagazines.length > 0 ? (
+                          filteredMagazines.map((mag) => (
+                            <motion.button
+                              key={mag.id}
+                              whileHover={{ scale: 1.05, y: -4 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => {
+                                setSelectedMagazine(mag);
+                                setSelectedVariation(null);
+                                setCurrentStep(2);
+                              }}
+                              className={`relative group aspect-[3/4.2] lg:aspect-[3/4] rounded-xl border overflow-hidden transition-all duration-500 ${
+                                selectedMagazine?.id === mag.id
+                                  ? "border-gold shadow-[0_0_40px_rgba(212,175,55,0.3)]"
+                                  : "border-gold/10 hover:border-gold/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.2)]"
+                              }`}
+                            >
+                              <Image
+                                src={
+                                  genderFilter === "male" && mag.thumbnailMale 
+                                    ? mag.thumbnailMale 
+                                    : genderFilter === "female" && mag.thumbnailFemale 
+                                      ? mag.thumbnailFemale 
+                                      : mag.thumbnail
+                                }
+                                alt={mag.name}
+                                fill
+                                className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
+                              <div className="absolute inset-0 flex flex-col items-center justify-end p-2 lg:p-4 text-center">
+                                {mag.id === "time" ? (
+                                  <span
+                                    className="px-3 py-1 bg-red-600 text-white text-xl lg:text-2xl tracking-widest drop-shadow-lg"
+                                    style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
+                                  >
+                                    {mag.name}
+                                  </span>
+                                ) : (
+                                  <MagazineTitle
+                                    magazine={mag}
+                                    className="text-xl lg:text-2xl tracking-wide drop-shadow-lg text-white"
+                                  />
+                                )}
+                                <span className="text-[6px] lg:text-[8px] uppercase tracking-widest text-gold/40 font-bold mt-0.5 lg:mt-1">
+                                  {mag.gender === 'female' ? 'Fashion & Style' : 'Lifestyle & Culture'}
+                                </span>
+                              </div>
+                              {selectedMagazine?.id === mag.id && (
+                                <div className="absolute top-2 right-2 lg:top-4 lg:right-4 bg-gold text-obsidian p-1 lg:p-1.5 rounded-full shadow-lg">
+                                  <Check className="w-2 h-2 lg:w-3.5 lg:h-3.5 stroke-[3]" />
+                                </div>
+                              )}
+                            </motion.button>
+                          ))
+                        ) : (
+                          <div className="col-span-full py-10 text-center text-gold/20 font-serif italic text-lg">
+                            No matching editions found.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setSelectionMode(null)}
+                      className="text-gold/60 hover:text-gold hover:bg-gold/10"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-2" />
+                      Back to Categories
+                    </Button>
+                    <div className="text-center space-y-0.5 lg:space-y-1">
+                      <h2 className="text-xl lg:text-4xl font-serif font-bold tracking-tighter italic text-gold-gradient">
+                        Local Legends
+                      </h2>
+                    </div>
+                    <div className="w-24" /> {/* Spacer */}
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 lg:pr-4 custom-scrollbar no-scrollbar">
+                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-6 pb-8 px-2 lg:px-0">
+                      {LOCAL_LEGENDS.map((variation) => (
+                        <motion.button
+                          key={variation.id}
+                          whileHover={{ scale: 1.03, y: -4 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            const mag = MAGAZINES.find(m => m.id === variation.magazineId) || MAGAZINES[0];
+                            setSelectedMagazine(mag);
+                            setSelectedVariation(variation);
+                            setCurrentStep(2);
+                          }}
+                          className="relative group aspect-[3/4] rounded-xl lg:rounded-2xl border border-gold/10 overflow-hidden bg-obsidian/40 transition-all duration-500 hover:border-gold/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.1)]"
+                        >
                           <Image
-                            src={
-                              genderFilter === "male" && mag.thumbnailMale 
-                                ? mag.thumbnailMale 
-                                : genderFilter === "female" && mag.thumbnailFemale 
-                                  ? mag.thumbnailFemale 
-                                  : mag.thumbnail
-                            }
-                            alt={mag.name}
+                            src={variation.thumbnail}
+                            alt={variation.title}
                             fill
-                            className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                            className="object-cover opacity-60 group-hover:opacity-80 transition-all duration-700 group-hover:scale-110"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
-                          <div className="absolute inset-0 flex flex-col items-center justify-end p-2 lg:p-4 text-center">
-                            {mag.id === "time" ? (
-                              <span
-                                className="px-3 py-1 bg-red-600 text-white text-xl lg:text-2xl tracking-widest drop-shadow-lg"
-                                style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
-                              >
-                                {mag.name}
-                              </span>
-                            ) : (
-                              <MagazineTitle
-                                magazine={mag}
-                                className="text-xl lg:text-2xl tracking-wide drop-shadow-lg text-white"
-                              />
-                            )}
-                            <span className="text-[6px] lg:text-[8px] uppercase tracking-widest text-gold/40 font-bold mt-0.5 lg:mt-1">
-                              {mag.gender === 'female' ? 'Fashion & Style' : 'Lifestyle & Culture'}
+                          <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/40 to-transparent" />
+                          <div className="absolute inset-0 p-2 lg:p-4 flex flex-col justify-end">
+                            <span className="text-[6px] lg:text-[10px] uppercase tracking-[0.2em] text-gold/60 font-bold mb-0.5 lg:mb-1">
+                              {variation.magazineName}
                             </span>
+                            <h3 className="text-xs lg:text-xl font-serif font-bold italic text-white leading-tight">
+                              {variation.title}
+                            </h3>
+                            <p className="hidden lg:block text-[10px] text-white/40 line-clamp-2 mt-1 italic">
+                              {variation.description}
+                            </p>
                           </div>
-                          {selectedMagazine?.id === mag.id && (
-                            <div className="absolute top-2 right-2 lg:top-4 lg:right-4 bg-gold text-obsidian p-1 lg:p-1.5 rounded-full shadow-lg">
-                              <Check className="w-2 h-2 lg:w-3.5 lg:h-3.5 stroke-[3]" />
-                            </div>
-                          )}
                         </motion.button>
-                      ))
-                    ) : (
-                      <div className="col-span-full py-10 text-center text-gold/20 font-serif italic text-lg">
-                        No matching editions found.
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </motion.div>
           )}
 
@@ -621,13 +777,24 @@ export default function HomePage() {
               exit={{ opacity: 0, y: -20 }}
               className="flex-1 flex flex-col min-h-0 p-4 space-y-3 lg:space-y-6 max-w-5xl mx-auto w-full"
             >
-              <div className="text-center space-y-0.5 lg:space-y-1 flex-shrink-0">
-                <h2 className="text-xl lg:text-4xl font-serif font-bold tracking-tighter italic text-gold-gradient">
-                  Capture Your Essence
-                </h2>
-                <p className="text-gold/40 text-[9px] lg:text-[10px] uppercase tracking-[0.2em] lg:tracking-[0.3em] font-bold">
-                  UPLOAD YOUR PORTRAIT FOR THE COVER
-                </p>
+              <div className="flex items-center justify-between flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  onClick={() => setCurrentStep(1)}
+                  className="text-gold/60 hover:text-gold hover:bg-gold/10"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Back to Selection
+                </Button>
+                <div className="text-center space-y-0.5 lg:space-y-1">
+                  <h2 className="text-xl lg:text-4xl font-serif font-bold tracking-tighter italic text-gold-gradient">
+                    Capture Your Essence
+                  </h2>
+                  <p className="text-gold/40 text-[9px] lg:text-[10px] uppercase tracking-[0.2em] lg:tracking-[0.3em] font-bold">
+                    UPLOAD YOUR PORTRAIT FOR THE COVER
+                  </p>
+                </div>
+                <div className="w-24" />
               </div>
 
               <div className="flex-1 min-h-0 w-full flex flex-col lg:flex-row gap-4 lg:gap-12 overflow-y-auto lg:overflow-hidden no-scrollbar">
@@ -709,7 +876,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Generate Button - Desktop only here */}
-                  <div className="hidden lg:block">
+                  <div className="hidden lg:flex flex-col space-y-3">
                     <Button
                       onClick={() => {
                         if (navigator.vibrate) navigator.vibrate(50);
@@ -731,12 +898,20 @@ export default function HomePage() {
                         </div>
                       )}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={handleSaveDraft}
+                      disabled={!image && !selectedMagazine}
+                      className="text-gold/40 hover:text-gold text-[10px] uppercase tracking-widest font-bold"
+                    >
+                      Save as Draft
+                    </Button>
                   </div>
                 </div>
               </div>
 
               {/* Generate Button - Mobile Fixed at bottom of main */}
-              <div className="lg:hidden flex-shrink-0 pt-2">
+              <div className="lg:hidden flex flex-col space-y-2 flex-shrink-0 pt-2">
                 <Button
                   onClick={() => {
                     if (navigator.vibrate) navigator.vibrate(50);
@@ -757,6 +932,14 @@ export default function HomePage() {
                       <span>Generate Masterpiece</span>
                     </div>
                   )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleSaveDraft}
+                  disabled={!image && !selectedMagazine}
+                  className="text-gold/40 hover:text-gold text-[8px] uppercase tracking-widest font-bold h-8"
+                >
+                  Save as Draft
                 </Button>
               </div>
             </motion.div>

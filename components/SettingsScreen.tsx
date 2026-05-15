@@ -78,13 +78,13 @@ export default function SettingsScreen() {
               ))}
             </div>
 
-            <div className="p-5 bg-ruby/10 border border-ruby/30 rounded-xl space-y-3 shadow-inner shadow-ruby/5">
-              <div className="flex items-center space-x-2 text-red-500">
+            <div className="p-4 bg-ruby/10 border border-ruby/20 rounded-xl space-y-2">
+              <div className="flex items-center space-x-2 text-ruby">
                 <AlertTriangle className="w-4 h-4" />
-                <span className="text-[11px] font-bold uppercase tracking-widest">Security Protocol</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Security Protocol</span>
               </div>
-              <p className="text-[11px] leading-relaxed text-platinum/90">
-                Your API key is stored <span className="font-bold text-red-400">locally in your browser</span>. We never see it on our servers. Note that using a free API key may involve data sharing with Google.
+              <p className="text-[10px] leading-relaxed text-ruby/70">
+                Your API key is stored <span className="font-bold text-ruby">locally</span>. We never see it. Using a free key may involve data sharing with Google as per their terms.
               </p>
             </div>
 
@@ -105,9 +105,9 @@ export default function SettingsScreen() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4 lg:space-y-0 max-w-md lg:max-w-[500px] mx-auto w-full flex flex-col items-center justify-center min-h-0"
+      className="space-y-4 lg:space-y-0 max-w-md lg:max-w-[500px] mx-auto w-full flex flex-col items-center justify-center min-h-0 p-2 lg:p-0"
     >
-      <Card className="border-gold/20 bg-obsidian/50 backdrop-blur-xl text-white overflow-hidden shadow-2xl shadow-gold/5 w-full flex flex-col min-h-0">
+      <Card className="border-gold/20 bg-obsidian/50 backdrop-blur-xl text-white overflow-hidden shadow-2xl shadow-gold/5 w-full flex flex-col min-h-0 max-h-[90vh] lg:max-h-none">
         <div className="flex-shrink-0 h-1 lg:h-1 bg-gold-gradient" />
         <CardHeader className="flex-shrink-0 space-y-1 lg:space-y-2 text-center pt-6 lg:pt-6">
           <CardTitle className="text-2xl lg:text-3xl font-serif font-bold tracking-tighter italic uppercase text-gold-gradient">
@@ -143,12 +143,11 @@ export default function SettingsScreen() {
                 )}
               </div>
               <Button
-                variant="luxury-emerald"
+                variant="ghost"
                 onClick={() => setShowInstructions(true)}
-                className="w-full h-10 lg:h-10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2"
+                className="w-full text-gold/40 hover:text-gold hover:bg-gold/10 text-[10px] lg:text-[10px] uppercase tracking-widest font-bold h-9 lg:h-9 border border-gold/5 hover:border-gold/20 transition-all"
               >
-                <Info className="w-4 h-4" />
-                <span>Free API KEY</span>
+                Credential Assistance
               </Button>
             </div>
 

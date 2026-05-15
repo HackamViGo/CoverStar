@@ -1,12 +1,15 @@
 import { Magazine } from "./magazines";
 import { CreativeBrief } from "./creative-director";
 import { getRandom, ANGLE_POOL, SEASON_POOL } from "./generation-pools";
+import { Variation } from "./variations";
 
 export function buildImagePrompt(
   magazine: Magazine,
   brief: CreativeBrief,
   gender: "male" | "female",
-  userName?: string
+  userName?: string,
+  variation?: Variation,
+  quality?: { resolution?: string; aspectRatio?: string }
 ): string {
   const angle = getRandom(ANGLE_POOL);
   const season = getRandom(SEASON_POOL);
@@ -24,7 +27,17 @@ export function buildImagePrompt(
     specialInstructions += `\nCRITICAL RULE FOR COSMO: Dense text layout. Scatter text dynamically around the subject using bright pinks and yellows. Numbers must be massive.`;
   }
 
-  return `Create a photorealistic, publication-ready magazine cover for ${magazine.name}.
+  // If a variation is provided, it acts as a "prompt mask" that overrides the scene description
+  const sceneDescription = variation 
+    ? `SCENE OVERRIDE: ${variation.promptOverride}`
+    : `STYLING & SCENE:
+- Cover Star: A ${gender} matching the reference identity.
+- Clothing: Seamlessly dress the subject in ${brief.clothing}. Fits naturally. Season: ${season}.
+- Pose & Expression: ${brief.pose}. ${brief.expression}. Camera angle: ${angle}.`;
+
+  const headline = variation ? variation.headline : brief.headline;
+
+  return `Create a photorealistic, publication-ready magazine cover for ${variation ? variation.magazineName : magazine.name}.
 ${userName ? `The cover star's name is ${userName}. You may incorporate it into one of the headlines if appropriate for the magazine's style (e.g., "${userName}: THE NEW FACE OF FASHION").` : ""}
 
 [CRITICAL FACE IDENTITY LOCK]
@@ -34,22 +47,20 @@ ${userName ? `The cover star's name is ${userName}. You may incorporate it into 
 - DO NOT apply heavy "AI beautification", plastic skin smoothing, or digital makeup that changes how the person looks.
 - The generated image must be recognizable as the EXACT SAME PERSON. Change the clothes, pose, lighting, and background, but LEAVE THE FACIAL LIKENESS EXACTLY AS IT IS.
 
-STYLING & SCENE:
-- Cover Star: A ${gender} matching the reference identity.
-- Clothing: Seamlessly dress the subject in ${brief.clothing}. Fits naturally. Season: ${season}.
-- Pose & Expression: ${brief.pose}. ${brief.expression}. Camera angle: ${angle}.
+${sceneDescription}
 
 LAYOUT & GRID RULES:
 - LOGO: ${magazine.logoPlacement}
 - TEXT DENSITY: ${magazine.textDensity}.
-- MAIN HEADLINE: Render exactly: "${brief.headline}"
+- MAIN HEADLINE: Render exactly: "${headline}"
 - COVER LINES: Render exactly: ${sublinesText}
 - SPATIAL GRID: ${magazine.spatialGrid}
+${quality?.aspectRatio ? `- ASPECT RATIO: ${quality.aspectRatio}` : ""}
 
 VISUAL DNA & MATERIALITY:
 - Color Palette: ${magazine.colorInstructions}
 - Lighting: Apply ${magazine.lightingDna}. (Match shadows on the new body to the light source on the original face).
-- Material: ${magazine.materialFinish}. Shot on Hasselblad H6D-100c, 8K resolution.
+- Material: ${magazine.materialFinish}. Shot on Hasselblad H6D-100c, ${quality?.resolution || "8K"} resolution.
 
 TYPOGRAPHY ENGINE:
 ${magazine.typographyLayout}. Text must look naturally PRINTED and interact with paper texture.

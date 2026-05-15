@@ -7,9 +7,10 @@ import { Sparkles, Star, Zap, Trophy, TrendingUp } from "lucide-react";
 interface AdScreenProps {
   onComplete: () => void;
   isReady: boolean;
+  loadingMessage?: string;
 }
 
-export default function AdScreen({ onComplete, isReady }: AdScreenProps) {
+export default function AdScreen({ onComplete, isReady, loadingMessage }: AdScreenProps) {
   const [timeLeft, setTimeLeft] = useState(10);
   const [currentAd, setCurrentAd] = useState(0);
   const [canFinish, setCanFinish] = useState(false);
@@ -113,36 +114,36 @@ export default function AdScreen({ onComplete, isReady }: AdScreenProps) {
               initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
               animate={{ scale: 1, opacity: 1, rotate: 0 }}
               exit={{ scale: 1.5, opacity: 0, rotate: 10 }}
-              className="p-6 lg:p-10 bg-gold/5 rounded-3xl border border-gold/20 backdrop-blur-xl shadow-2xl shadow-gold/10"
+              className="p-4 lg:p-10 bg-gold/5 rounded-2xl lg:rounded-3xl border border-gold/20 backdrop-blur-xl shadow-2xl shadow-gold/10"
             >
               {/* Icon sizing */}
-              <div className="w-12 h-12 lg:w-[120px] lg:h-[120px] flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+              <div className="w-10 h-10 lg:w-[120px] lg:h-[120px] flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
                 {ads[currentAd].icon}
               </div>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="space-y-4 lg:space-y-6">
+        <div className="space-y-3 lg:space-y-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentAd}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="space-y-2 lg:space-y-4"
+              className="space-y-1 lg:space-y-4"
             >
-              <h2 className="text-3xl lg:text-[3rem] font-serif font-bold tracking-tighter italic text-gold-gradient uppercase leading-tight">
+              <h2 className="text-2xl lg:text-[3rem] font-serif font-bold tracking-tighter italic text-gold-gradient uppercase leading-tight">
                 {ads[currentAd].title}
               </h2>
-              <p className="text-gold/40 text-sm lg:text-[1.3rem] leading-relaxed font-medium max-w-md mx-auto">
+              <p className="text-gold/40 text-[10px] lg:text-[1.3rem] leading-relaxed font-medium max-w-[240px] lg:max-w-md mx-auto">
                 {ads[currentAd].description}
               </p>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="pt-12 lg:pt-16 space-y-4 lg:space-y-6 max-w-md lg:max-w-[600px] mx-auto w-full">
+        <div className="pt-6 lg:pt-16 space-y-3 lg:space-y-6 max-w-xs lg:max-w-[600px] mx-auto w-full">
           <div className="relative h-1 lg:h-1.5 bg-gold/10 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: "100%" }}
@@ -151,9 +152,9 @@ export default function AdScreen({ onComplete, isReady }: AdScreenProps) {
               className="absolute inset-y-0 left-0 bg-gold-gradient"
             />
           </div>
-          <div className="flex items-center justify-between text-[10px] lg:text-[1rem] uppercase tracking-widest lg:tracking-[4px] text-gold/30 font-bold">
-            <span>Crafting Excellence</span>
-            <span className="text-obsidian bg-gold px-2 lg:px-4 py-1 lg:py-2 rounded font-black lg:text-[1.5rem]">
+          <div className="flex items-center justify-between text-[8px] lg:text-[1rem] uppercase tracking-widest lg:tracking-[4px] text-gold/30 font-bold">
+            <span>{loadingMessage || "Crafting Excellence"}</span>
+            <span className="text-obsidian bg-gold px-1.5 lg:px-4 py-0.5 lg:py-2 rounded font-black lg:text-[1.5rem]">
               {timeLeft}s
             </span>
           </div>

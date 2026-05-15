@@ -185,9 +185,9 @@ export default function DustAnimation({ title, imageUrl, onComplete }: DustAnima
             className="relative z-20 text-center"
           >
             {(() => {
-              const mag = MAGAZINES.find(m => m.name === title);
+              const mag = MAGAZINES.find(m => m.name === title || m.id === title);
               if (!mag) return (
-                <h2 className="text-7xl font-serif font-bold italic tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase">
+                <h2 className="text-4xl lg:text-7xl font-serif font-bold italic tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase px-4">
                   {title}
                 </h2>
               );
@@ -195,7 +195,7 @@ export default function DustAnimation({ title, imageUrl, onComplete }: DustAnima
               if (mag.id === "time") {
                 return (
                   <span
-                    className="px-8 py-2 bg-red-600 text-white text-7xl tracking-widest drop-shadow-[0_0_40px_rgba(212,175,55,0.4)]"
+                    className="px-8 py-2 bg-red-600 text-white text-4xl lg:text-7xl tracking-widest drop-shadow-[0_0_40px_rgba(212,175,55,0.4)]"
                     style={{ fontFamily: mag.uiFont, fontWeight: mag.uiFontWeight }}
                   >
                     {mag.name}
@@ -206,7 +206,7 @@ export default function DustAnimation({ title, imageUrl, onComplete }: DustAnima
               return (
                 <MagazineTitle 
                   magazine={mag} 
-                  className="text-7xl tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase" 
+                  className="text-4xl lg:text-7xl tracking-tighter text-gold-gradient drop-shadow-[0_0_40px_rgba(212,175,55,0.4)] uppercase" 
                 />
               );
             })()}

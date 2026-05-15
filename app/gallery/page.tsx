@@ -19,12 +19,16 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { MAGAZINES } from "@/lib/magazines";
 import { MagazineTitle } from "@/components/MagazineTitle";
+import { ShareModal } from "@/components/ShareModal";
+import { Magazine3DCard } from "@/components/Magazine3DCard";
 
 export default function GalleryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { gallery, removeCover, setCurrentStep } = useAppStore();
   const [selectedCover, setSelectedCover] = useState<any | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<any>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -62,30 +66,10 @@ export default function GalleryPage() {
     toast.success("All covers downloaded successfully");
   };
 
-  const handleShare = async (imageUrl: string, magazineName: string) => {
+  const handleShare = (cover: any) => {
     if (navigator.vibrate) navigator.vibrate(50);
-    
-    const shareData = {
-      title: `My ${magazineName} Cover`,
-      text: `Check out my custom ${magazineName} magazine cover created with CoverStar AI!`,
-      url: imageUrl,
-    };
-
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        toast.success("Shared successfully");
-      } else {
-        await navigator.clipboard.writeText(imageUrl);
-        toast.success("Link copied to clipboard");
-      }
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        console.error("Error sharing:", error);
-        await navigator.clipboard.writeText(imageUrl);
-        toast.success("Link copied to clipboard");
-      }
-    }
+    setShareTarget(cover);
+    setIsShareModalOpen(true);
   };
 
   const openFullscreen = (cover: any) => {
@@ -212,7 +196,7 @@ export default function GalleryPage() {
                           className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gold text-obsidian hover:bg-gold-light shadow-lg transition-transform hover:scale-110"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleShare(cover.imageUrl, cover.magazineName);
+                            handleShare(cover);
                           }}
                         >
                           <Share2 className="w-5 h-5 lg:w-6 lg:h-6" />
@@ -263,20 +247,15 @@ export default function GalleryPage() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-            className="relative w-full max-w-[85vw] sm:max-w-[70vw] lg:max-w-lg aspect-[2/3] rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(212,175,55,0.3)] border border-gold/20"
+            className="relative w-full max-w-[85vw] sm:max-w-[70vw] lg:max-w-lg aspect-[2/3] rounded-3xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <Image
-                src={selectedCover.imageUrl}
-                alt={selectedCover.magazineName}
-                fill
-                className="object-cover"
-                referrerPolicy="no-referrer"
-              />
+              <Magazine3DCard imageUrl={selectedCover.imageUrl} animation="shimmer" />
+              
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-4 right-4 lg:top-6 lg:right-6 bg-obsidian/50 hover:bg-obsidian/70 text-gold rounded-full backdrop-blur-md border border-gold/20 w-10 h-10 lg:w-14 lg:h-14"
+                className="absolute top-4 right-4 lg:top-6 lg:right-6 bg-obsidian/50 hover:bg-obsidian/70 text-gold rounded-full backdrop-blur-md border border-gold/20 w-10 h-10 lg:w-14 lg:h-14 z-50"
                 onClick={() => setSelectedCover(null)}
               >
                 <X className="w-6 h-6 lg:w-8 lg:h-8" />
@@ -285,6 +264,13 @@ export default function GalleryPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        imageUrl={shareTarget?.imageUrl || ""}
+        magazineName={shareTarget?.magazineName || ""}
+      />
 
       {/* Footer Branding */}
       <footer className="flex-shrink-0 p-4 lg:p-2 text-center border-t border-gold/5 h-auto lg:h-[40px] flex items-center justify-center">

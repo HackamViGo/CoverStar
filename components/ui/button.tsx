@@ -12,10 +12,6 @@ const buttonVariants = cva(
           "bg-gold text-obsidian shadow-lg shadow-gold/20 hover:bg-gold/90 font-semibold tracking-wide",
         luxury:
           "bg-gold-gradient text-obsidian shadow-lg shadow-gold/30 hover:opacity-90 font-bold tracking-wider uppercase text-xs",
-        "luxury-ruby":
-          "bg-ruby-gradient text-white shadow-lg shadow-ruby/30 hover:opacity-90 font-bold tracking-wider uppercase text-xs",
-        "luxury-emerald":
-          "bg-emerald-gradient text-white shadow-lg shadow-emerald/30 hover:opacity-90 font-bold tracking-wider uppercase text-xs",
         destructive:
           "bg-ruby text-white shadow-sm hover:bg-ruby/90",
         outline:
